@@ -1,0 +1,76 @@
+Window {
+  width: max;
+  height: max;
+  backgroundColor: #000000;
+  color: #cccccc;
+}
+
+CommandBlock {
+  position: absolute;
+  width: 99%w;
+  border: 1px;
+  borderColor: #cccccc;
+  backgroundColor: #cccccc;
+  color: #333333;
+  margin: 0, 10px;
+}
+
+.active {
+  borderColor: #ffffff;
+  backgroundColor: #ffffff;
+  color: #000000;
+}
+
+CommandInfo {
+  width: 100%;
+}
+
+Command {
+  width: 100%;
+  backgroundColor: #cccccc;
+  color: #000000;
+  border: 1px;
+  borderColor: #000000;
+}
+
+.run {
+  backgroundColor: #0000aa;
+  color: #ffffff;
+  padding: 5px, 5px, 2px, 5px;
+}
+
+.done {
+  backgroundColor: #cccccc;
+  color: #000000;
+  padding: 5px, 5px, 2px, 5px;
+}
+
+CommandResult {
+  width: 100%;
+  padding: 5px;
+  padding: 10px, 10px, 3px, 10px;
+  textWrap: manual;
+  backgroundColor: #000000;
+  color: #cccccc;
+}
+
+
+
+.new {
+  backgroundColor: #000000;
+  color: #eeeeee;
+}
+
+.prompt {
+  padding: 0px, 5px;
+  backgroundColor: #00cccc;
+  color: #000000;
+}
+
+.cmd {
+  backgroundColor: #000000;
+  color: #ffffff;
+  width: -25px;
+  paddingLeft: 5px;
+}
+
