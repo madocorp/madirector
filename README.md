@@ -1,0 +1,2 @@
+# MaDirector = Terminal emulator + Shell
+

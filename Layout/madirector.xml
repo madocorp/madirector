@@ -1,0 +1,4 @@
+<Window title="MaDirector">
+  <Event type="KeyPress">\MADIR\Screen\Controller::keyPressHandler</Event>
+
+</Window>
