@@ -45,23 +45,23 @@ class CommanderHandler {
     $n = stream_select($read, $write, $except, 0, 0);
     if ($n !== false && $n > 0) {
       foreach ($read as $socket) {
-        $response = Message::receive($socket);
-echo ".\n";
-        if ($response === false) {
-          continue;
-        }
-        if (!isset($response['cid'])) {
-          throw new \Exception("Received message is not a valid command result");
-        }
-        $commandId = $response['cid'];
-        if (isset(self::$commands[$commandId])) {
-          $command = self::$commands[$commandId];
-          if (isset($response['returned'])) {
-echo "END3\n";
-            $command->end($response['returned']);
-            unset(self::$commands[$commandId]);
-          } else {
-            $command->output($response['output']);
+        while (true) {
+          $response = Message::receive($socket);
+          if ($response === false) {
+            break;
+          }
+          if (!isset($response['cid'])) {
+            throw new \Exception("Received message is not a valid command result");
+          }
+          $commandId = $response['cid'];
+          if (isset(self::$commands[$commandId])) {
+            $command = self::$commands[$commandId];
+            if (isset($response['returned'])) {
+              $command->end($response['returned']);
+              unset(self::$commands[$commandId]);
+            } else {
+              $command->output($response['output']);
+            }
           }
         }
       }

@@ -24,8 +24,7 @@ class Pty {
     Libc::openpty($this->master, $this->slave);
     Libc::setNonBlocking($this->master);
     $idleSince = microtime(true);
-    $end = false;
-    while (!$end) {
+    while (true) {
       $read = [$this->socket];
       $write = $except = [];
       $n = stream_select($read, $write, $except, 60, 0);
@@ -35,13 +34,9 @@ class Pty {
         }
         continue;
       }
-      try {
-        $command = Message::receive($this->socket);
-      } catch (\Exception $e) { // invalid json
-        continue;
-      }
+      $command = Message::receive($this->socket);
       if ($command === false) {
-        continue;
+        break;
       }
       $this->runCommand($command);
       $idleSince = microtime(true);
@@ -59,7 +54,6 @@ class Pty {
   private function runCommand($command) {
     $this->cid = $command['cid'];
     $executor = new \MADIR\Command\Executor($command['command'], $this->master, $this->slave, [$this, 'sendOutput']);
-echo "END1\n";
     Message::send($this->socket, [
       'cid' => $this->cid,
       'pid' => $this->pid,

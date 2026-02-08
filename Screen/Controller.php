@@ -62,8 +62,8 @@ class Controller {
     $info->setText(getcwd());
     $cmd = new \SPTK\Element($block, false, $command->returnValue === false ? 'run' : 'done', 'Command');
     $cmd->setText('$ ' . $command->command);
-    $result = new \SPTK\Element($block, false, false, 'CommandResult');
-    $result->setText('result...');
+    $result = new \SPTK\Terminal($block);
+    $result->setBuffer($command->screenBuffer);
     $block->recalculateGeometry();
     $geometry = $block->getGeometry();
     return $y + $geometry->height + self::$commandGap;
