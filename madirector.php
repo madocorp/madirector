@@ -12,8 +12,6 @@ require_once 'SPTK/App.php';
 require_once 'Screen/Controller.php';
 require_once 'Command/Session.php';
 require_once 'Command/Command.php';
-require_once 'Command/ScreenBuffer.php';
-require_once 'Command/ANSIParser.php';
 
 new \SPTK\App(
   'Layout/madirector.xml',

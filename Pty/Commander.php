@@ -47,20 +47,17 @@ class Commander {
       }
       foreach ($read as $socket) {
         if ($socket === $this->commanderSocket) {
-          try {
-            $command = Message::receive($socket);
-          } catch (\Exception $e) {
+          $command = Message::receive($socket);
+          if ($command === false) {
             $ok = false;
             break;
-          }
-          if ($command === false) {
-            continue;
           }
           $this->delegateCommand($command);
         } else {
           $ptyResponse = Message::receive($socket);
           if ($ptyResponse === false) {
-            continue;
+            $ok = false;
+            break;
           }
           $this->forwardResponse($ptyResponse);
         }

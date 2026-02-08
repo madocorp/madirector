@@ -2,15 +2,15 @@ Window {
   width: max;
   height: max;
   backgroundColor: #000000;
-  color: #cccccc;
+  color: #bbbbbb;
 }
 
 CommandBlock {
   position: absolute;
   width: 99%w;
   border: 1px;
-  borderColor: #cccccc;
-  backgroundColor: #cccccc;
+  borderColor: #bbbbbb;
+  backgroundColor: #bbbbbb;
   color: #333333;
   margin: 0, 10px;
 }
@@ -27,7 +27,7 @@ CommandInfo {
 
 Command {
   width: 100%;
-  backgroundColor: #cccccc;
+  backgroundColor: #bbbbbb;
   color: #000000;
   border: 1px;
   borderColor: #000000;
@@ -40,18 +40,18 @@ Command {
 }
 
 .done {
-  backgroundColor: #cccccc;
+  backgroundColor: #bbbbbb;
   color: #000000;
   padding: 5px, 5px, 2px, 5px;
 }
 
-CommandResult {
+Terminal {
   width: 100%;
   padding: 5px;
   padding: 10px, 10px, 3px, 10px;
   textWrap: manual;
   backgroundColor: #000000;
-  color: #cccccc;
+  color: #bbbbbb;
 }
 
 

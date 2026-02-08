@@ -15,14 +15,13 @@ class Command {
     $this->command = $command;
     $this->session = $session;
     if ($command !== false) {
-      $this->screenBuffer = new ScreenBuffer;
+      $this->screenBuffer = new \SPTK\Terminal\ScreenBuffer;
       \MADIR\Pty\CommanderHandler::runCommand($this);
     }
   }
 
   public function output($stream) {
-    $this->screenBuffer->parser->parse($stream);
-//$this->screenBuffer->debug();
+    $this->screenBuffer->parse($stream);
   }
 
   public function end() {
