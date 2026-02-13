@@ -22,6 +22,11 @@ class Command {
 
   public function output($stream) {
     $this->screenBuffer->parse($stream);
+
+// TODO: detect size changes!
+\MADIR\Screen\Controller::listCommands();
+\SPTK\Element::refresh();
+
   }
 
   public function end() {
