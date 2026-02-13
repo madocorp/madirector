@@ -19,6 +19,7 @@ class Pty {
 
   public function __construct($socket) {
     cli_set_process_title('MADIRPty');
+    putenv("LANG=en_US.UTF-8");
     $this->pid = getmypid();
     $this->socket = $socket;
     Libc::openpty($this->master, $this->slave);
