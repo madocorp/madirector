@@ -37,4 +37,8 @@ class PtyHandler {
     Message::send($this->socket, $command);
   }
 
+  public function sendInput($input) {
+    Message::send($this->socket, ['cid' => $this->cid, 'input' => $input]);
+  }
+
 }

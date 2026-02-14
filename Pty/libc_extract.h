@@ -1,6 +1,21 @@
 
 typedef int pid_t;
+typedef unsigned int tcflag_t;
+typedef unsigned char cc_t;
+typedef unsigned int speed_t;
+struct termios {
+  tcflag_t c_iflag;
+  tcflag_t c_oflag;
+  tcflag_t c_cflag;
+  tcflag_t c_lflag;
+  cc_t c_line;
+  cc_t c_cc[32];
+  speed_t c_ispeed;
+  speed_t c_ospeed;
+};
 
+int tcgetattr(int fd, struct termios *termios_p);
+int tcsetattr(int fd, int optional_actions, const struct termios *termios_p);
 int openpty(int *amaster, int *aslave, char *name, void *termp, void *winp);
 int open(const char *path, int flags);
 int dup2(int oldfd, int newfd);

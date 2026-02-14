@@ -38,6 +38,13 @@ class CommanderHandler {
     return $commandId;
   }
 
+  public static function sendInput($cid, $input) {
+    Message::send(self::$commanderSocket, [
+      'cid' => $cid,
+      'input' => $input
+    ]);
+  }
+
   public static function getResults() {
     $read = [self::$commanderSocket];
     $write = [];

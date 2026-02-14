@@ -7,6 +7,7 @@ class Message {
   const COMMAND = 1;
   const RETURNED = 2;
   const OUTPUT = 3;
+  const INPUT = 4;
 
   public static function send($socket, $data) {
     $returned = $data['returned'] ?? 0;
@@ -21,6 +22,9 @@ class Message {
     } else if (isset($data['output'])) {
       $type = self::OUTPUT;
       $streamData = $data['output'];
+    } else if (isset($data['input'])) {
+      $type = self::INPUT;
+      $streamData = $data['input'];
     } else {
       throw new \Exception('Unknown message on the line');
     }
@@ -62,6 +66,10 @@ class Message {
       case self::OUTPUT:
         unset($data['returned']);
         $data['output'] = $streamData;
+        break;
+      case self::INPUT:
+        unset($data['returned']);
+        $data['input'] = $streamData;
         break;
       default:
         throw new \Exception('Unknown message on the line');

@@ -10,13 +10,14 @@ class Command {
   public $done = false;
   public $returnValue = false;
   public $screenBuffer;
+  public $cid;
 
   public function __construct($command, $session) {
     $this->command = $command;
     $this->session = $session;
     if ($command !== false) {
       $this->screenBuffer = new \SPTK\Terminal\ScreenBuffer;
-      \MADIR\Pty\CommanderHandler::runCommand($this);
+      $this->cid = \MADIR\Pty\CommanderHandler::runCommand($this);
     }
   }
 
@@ -29,8 +30,11 @@ class Command {
 
   }
 
+  public function input($stream) {
+    \MADIR\Pty\CommanderHandler::sendInput($this->cid, $stream);
+  }
+
   public function end() {
-    echo "end\n";
     $this->returnValue = 0;
     $this->session->endCommand();
     \MADIR\Screen\Controller::listCommands();

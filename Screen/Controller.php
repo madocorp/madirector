@@ -64,6 +64,7 @@ class Controller {
     $cmd->setText('$ ' . $command->command);
     $result = new \SPTK\Terminal($block);
     $result->setBuffer($command->screenBuffer);
+    $result->setInputCallback([$command, 'input']);
     $block->recalculateGeometry();
     $geometry = $block->getGeometry();
     return $y + $geometry->height + self::$commandGap;

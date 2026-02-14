@@ -18,6 +18,14 @@ class Libc {
   const PF_UNIX = 1;
   const SOCK_STREAM = 1;
 
+  const TCSANOW = 0;
+  const ICANON = 0000002;
+  const ECHO = 0000010;
+  const ISIG = 0000001;
+  const IXON = 0002000;
+  const ICRNL = 0000400;
+  const OPOST = 0000001;
+
   public static $instance;
 
   public $libc;
@@ -110,6 +118,27 @@ class Libc {
     }
     if ($libc->fcntl($fd, self::F_SETFL, $flags | self::O_NONBLOCK) < 0) {
       die("fcntl set failed");
+    }
+  }
+
+  public static function setRawMode(int $fd) {
+    $libc = self::$instance->libc;
+    $t = $libc->new("struct termios");
+    if ($libc->tcgetattr($fd, \FFI::addr($t)) !== 0) {
+      throw new \Exception("tcgetattr failed");
+    }
+    // ---- input flags ----
+    $t->c_iflag &= ~(self::IXON | self::ICRNL);
+    // ---- output flags ----
+    $t->c_oflag &= ~(self::OPOST);
+    // ---- local flags ----
+    $t->c_lflag &= ~(self::ICANON | self::ECHO | self::ISIG);
+    // ---- control chars ----
+    // read returns immediately
+    $t->c_cc[6] = 1;  // VMIN
+    $t->c_cc[5] = 0;  // VTIME
+    if ($libc->tcsetattr($fd, self::TCSANOW, \FFI::addr($t)) !== 0) {
+      throw new \Exception("tcsetattr failed");
     }
   }
 
