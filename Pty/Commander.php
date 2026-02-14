@@ -47,12 +47,17 @@ class Commander {
       }
       foreach ($read as $socket) {
         if ($socket === $this->commanderSocket) {
-          $command = Message::receive($socket);
-          if ($command === false) {
+          $message = Message::receive($socket);
+          if ($message === false) {
             $ok = false;
             break;
           }
-          $this->delegateCommand($command);
+          if (isset($message['input'])) {
+            $this->sendInput($message);
+          }
+          if (isset($message['command'])) {
+            $this->delegateCommand($message);
+          }
         } else {
           $ptyResponse = Message::receive($socket);
           if ($ptyResponse === false) {
@@ -78,6 +83,19 @@ class Commander {
       $this->ptys[$selectedPty->pid] = $selectedPty;
     }
     $selectedPty->runCommand($command);
+  }
+
+  private function sendInput($input) {
+    $selectedPty = false;
+    foreach ($this->ptys as $pty) {
+      if ($pty->cid === $input['cid']) {
+        $selectedPty = $pty;
+        break;
+      }
+    }
+    if ($selectedPty !== false) {
+      $selectedPty->sendInput($input['input']);
+    }
   }
 
   private function forwardResponse($ptyResponse) {

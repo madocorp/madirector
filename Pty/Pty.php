@@ -20,8 +20,10 @@ class Pty {
   public function __construct($socket) {
     cli_set_process_title('MADIRPty');
     putenv("LANG=en_US.UTF-8");
+    putenv("TERM=xterm-256color");
     $this->pid = getmypid();
     $this->socket = $socket;
+    stream_set_blocking($this->socket, false);
     Libc::openpty($this->master, $this->slave);
     Libc::setNonBlocking($this->master);
     $idleSince = microtime(true);
@@ -54,7 +56,7 @@ class Pty {
 
   private function runCommand($command) {
     $this->cid = $command['cid'];
-    $executor = new \MADIR\Command\Executor($command['command'], $this->master, $this->slave, [$this, 'sendOutput']);
+    $executor = new \MADIR\Command\Executor($command['command'], $this->master, $this->slave, [$this, 'sendOutput'], $this->socket);
     Message::send($this->socket, [
       'cid' => $this->cid,
       'pid' => $this->pid,

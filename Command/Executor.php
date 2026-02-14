@@ -3,6 +3,7 @@
 namespace MADIR\Command;
 
 use \MADIR\Pty\Libc;
+use \MADIR\Pty\Message;
 
 class Executor {
 
@@ -10,12 +11,14 @@ class Executor {
   private $master;
   private $slave;
   private $outputFunc;
+  private $inputSocket;
   private $pipes = [];
 
-  public function __construct($command, $master, $slave, $outputFunc) {
+  public function __construct($command, $master, $slave, $outputFunc, $inputSocket) {
     $this->master = $master;
     $this->slave = $slave;
     $this->outputFunc = $outputFunc;
+    $this->inputSocket = $inputSocket;
     $parser = new CommandParser;
     $parsedCommand = $parser->parse($command);
     $this->runSequence($parsedCommand);
@@ -58,6 +61,15 @@ class Executor {
     $dataRead = false;
     $data = false;
     while (!$processEnd || $dataRead) {
+      $msg = Message::receive($this->inputSocket);
+      if ($msg !== false) {
+       Libc::write($this->master, $msg['input']);
+$a = str_split($msg['input']);
+foreach ($a as $c) {
+  echo "0x" . dechex(ord($c)) . " ";
+}
+echo "\n";
+      }
       $dataRead = false;
       $data = Libc::read($this->master, 8192);
       if ($data !== false && $data !== '') {
@@ -85,6 +97,7 @@ class Executor {
     $n = count($this->pipes);
     if ($i === 0) {
       Libc::dup2($this->slave, 0);
+Libc::setRawMode(0);
     }
     if ($i > 0) {
       Libc::dup2($this->pipes[$i - 1][0], 0);
@@ -94,7 +107,6 @@ class Executor {
     }
     if ($n === 0 || $i === $n - 1) {
       Libc::dup2($this->slave, 1);
-
     }
     // set strderr
     Libc::dup2($this->slave, 2);
