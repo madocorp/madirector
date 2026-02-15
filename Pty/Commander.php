@@ -14,57 +14,50 @@ class Commander {
   private $isChild = false;
 
   public function __construct($commanderSocket) {
-    new Libc;
     $this->commanderSocket = $commanderSocket;
     cli_set_process_title('MADIRCommander');
     register_shutdown_function([$this, 'end']);
-    pcntl_signal(SIGCHLD, [$this, 'death']);
+    pcntl_signal(SIGCHLD, [$this, 'childEnd']);
+    pcntl_async_signals(true);
     $this->waitForMessage();
   }
 
   private function waitForMessage() {
     $ok = true;
     while ($ok) {
-      $read = [$this->commanderSocket];
-      $write = [];
-      $except = [];
+      $fds = [$this->commanderSocket];
       foreach ($this->ptys as $pty) {
         if ($pty->idle === false) {
-          $read[] = $pty->socket;
+          $fds[] = $pty->socket;
         }
       }
-      $n = @stream_select($read, $write, $except, 60, 0);
+      $ready = Libc::pollN(...$fds);
       while (!empty($this->deathReport)) {
         $msg = array_shift($this->deathReport);
         Message::send($this->commanderSocket, $msg);
       }
-      if ($n === false) {
-        pcntl_signal_dispatch();
-        continue;
-      }
-      if ($n == 0) {
-        continue;
-      }
-      foreach ($read as $socket) {
-        if ($socket === $this->commanderSocket) {
-          $message = Message::receive($socket);
-          if ($message === false) {
-            $ok = false;
-            break;
+      foreach ($ready as $i => $read) {
+        if ($read) {
+          if ($i === 0) {
+            $message = Message::receive($this->commanderSocket);
+            if ($message === false) {
+              $ok = false;
+              break;
+            }
+            if (isset($message['input'])) {
+              $this->sendInput($message);
+            }
+            if (isset($message['command'])) {
+              $this->delegateCommand($message);
+            }
+          } else {
+            $ptyResponse = Message::receive($fds[$i]);
+            if ($ptyResponse === false) {
+              $ok = false;
+              break;
+            }
+            $this->forwardResponse($ptyResponse);
           }
-          if (isset($message['input'])) {
-            $this->sendInput($message);
-          }
-          if (isset($message['command'])) {
-            $this->delegateCommand($message);
-          }
-        } else {
-          $ptyResponse = Message::receive($socket);
-          if ($ptyResponse === false) {
-            $ok = false;
-            break;
-          }
-          $this->forwardResponse($ptyResponse);
         }
       }
     }
@@ -116,7 +109,7 @@ class Commander {
       $pty->since = microtime(true);
       posix_kill($pty->pid, SIGKILL);
       if (is_resource($pty->socket)) {
-        fclose($pty->socket);
+        Libc::close($pty->socket);
       }
     }
     while (!empty($this->ptys)) {
@@ -129,13 +122,11 @@ class Commander {
     }
   }
 
-  public function death() {
+  public function childEnd() {
     while (($pid = pcntl_waitpid(-1, $status, WNOHANG)) > 0) {
       if (isset($this->ptys[$pid])) {
         $pty = $this->ptys[$pid];
-        if (is_resource($wpty->socket)) {
-          fclose($pty->socket);
-        }
+        Libc::close($pty->socket);
         if ($pty->idle === false) {
           $this->deathReport[] = [
             'cid' => $pty->cid,

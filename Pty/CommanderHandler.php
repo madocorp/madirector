@@ -9,7 +9,8 @@ class CommanderHandler {
   private static $commandId = 0;
 
   public static function init() {
-    $socket = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, 0);
+    new Libc;
+    $socket = Libc::socketpair();
     if ($socket === false) {
       throw new \Exception('Creating socket pair failed!');
     }
@@ -17,13 +18,13 @@ class CommanderHandler {
     if ($pid == -1) {
       throw new \Exception('Could not fork!');
     } else if ($pid === 0) {
-      fclose($socket[0]); // child closes parent end
+      Libc::close($socket[0]); // child closes parent end
       new Commander($socket[1]);
       exit(0);
     }
-    fclose($socket[1]); // parent closes child end
+    Libc::close($socket[1]); // parent closes child end
     self::$commanderSocket = $socket[0];
-    stream_set_blocking(self::$commanderSocket, false);
+    Libc::setNonBlocking(self::$commanderSocket);
     cli_set_process_title('MADIR');
   }
 
@@ -46,30 +47,22 @@ class CommanderHandler {
   }
 
   public static function getResults() {
-    $read = [self::$commanderSocket];
-    $write = [];
-    $except = [];
-    $n = stream_select($read, $write, $except, 0, 0);
-    if ($n !== false && $n > 0) {
-      foreach ($read as $socket) {
-        while (true) {
-          $response = Message::receive($socket);
-          if ($response === false) {
-            break;
-          }
-          if (!isset($response['cid'])) {
-            throw new \Exception("Received message is not a valid command result");
-          }
-          $commandId = $response['cid'];
-          if (isset(self::$commands[$commandId])) {
-            $command = self::$commands[$commandId];
-            if (isset($response['returned'])) {
-              $command->end($response['returned']);
-              unset(self::$commands[$commandId]);
-            } else {
-              $command->output($response['output']);
-            }
-          }
+    while (true) {
+      $response = Message::receive(self::$commanderSocket);
+      if ($response === false) {
+        break;
+      }
+      if (!isset($response['cid'])) {
+        throw new \Exception("Received message is not a valid command result");
+      }
+      $commandId = $response['cid'];
+      if (isset(self::$commands[$commandId])) {
+        $command = self::$commands[$commandId];
+        if (isset($response['returned'])) {
+          $command->end($response['returned']);
+          unset(self::$commands[$commandId]);
+        } else {
+          $command->output($response['output']);
         }
       }
     }

@@ -12,32 +12,25 @@ class Pty {
   private $pid;
   private $cid;
   private $socket;
-  private $connection;
-  private $connected = false;
   private $master;
   private $slave;
 
   public function __construct($socket) {
+//    pcntl_async_signals(true);
     cli_set_process_title('MADIRPty');
     putenv("LANG=en_US.UTF-8");
     putenv("TERM=xterm-256color");
     $this->pid = getmypid();
     $this->socket = $socket;
-    stream_set_blocking($this->socket, false);
+    Libc::setNonBlocking($this->socket);
     Libc::openpty($this->master, $this->slave);
     Libc::setNonBlocking($this->master);
     $idleSince = microtime(true);
     while (true) {
-      $read = [$this->socket];
-      $write = $except = [];
-      $n = stream_select($read, $write, $except, 60, 0);
-      if ($n === false || $n === 0) { // EINTR or timeout
-        if (microtime(true) - $idleSince > self::MAX_IDLE_TIME) {
-          break;
-        }
-        continue;
+      $ready = Libc::pollN($this->socket);
+      if ($ready[0]) {
+        $command = Message::receive($this->socket);
       }
-      $command = Message::receive($this->socket);
       if ($command === false) {
         break;
       }

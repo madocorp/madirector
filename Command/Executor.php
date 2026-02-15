@@ -13,6 +13,8 @@ class Executor {
   private $outputFunc;
   private $inputSocket;
   private $pipes = [];
+  private $run = true;
+  private $lastpid;
 
   public function __construct($command, $master, $slave, $outputFunc, $inputSocket) {
     $this->master = $master;
@@ -55,49 +57,47 @@ class Executor {
       Libc::close($p[0]);
       Libc::close($p[1]);
     }
-    $output = '';
-    $lastpid = end($pids);
-    $processEnd = false;
-    $dataRead = false;
-    $data = false;
-    while (!$processEnd || $dataRead) {
-      $msg = Message::receive($this->inputSocket);
-      if ($msg !== false) {
-       Libc::write($this->master, $msg['input']);
-$a = str_split($msg['input']);
-foreach ($a as $c) {
-  echo "0x" . dechex(ord($c)) . " ";
-}
-echo "\n";
-      }
-      $dataRead = false;
-      $data = Libc::read($this->master, 8192);
-      if ($data !== false && $data !== '') {
-        call_user_func($this->outputFunc, $data);
-        $dataRead = true;
-      }
-      foreach ($pids as $pid) {
-        $res = pcntl_waitpid($pid, $status, WNOHANG);
-        if ($res === $lastpid) {
-          $processEnd = true;
+    $this->lastpid = end($pids);
+    pcntl_signal(SIGCHLD, [$this, 'childEnd']);
+    while ($this->run) {
+      $ready = Libc::pollN($this->inputSocket, $this->master);
+      if ($ready[0]) {
+        while (true) {
+          $msg = Message::receive($this->inputSocket);
+          if ($msg === false) {
+            break;
+          }
+          $res = Libc::write($this->master, $msg['input']);
         }
       }
-      if (!$processEnd || $dataRead) {
-        usleep(10000);
+      if ($ready[1]) {
+        while (true) {
+          $data = Libc::read($this->master, 8192);
+          if ($data === false || $data === '') {
+var_dump($data);
+            break;
+          }
+          call_user_func($this->outputFunc, $data);
+        }
       }
+    }
+    foreach ($pids as $pid) {
+      $res = pcntl_waitpid($pid, $status, WNOHANG);
     }
     return pcntl_wexitstatus($status);
   }
 
   private function child($i, $redirects, $argv) {
+    $libc = Libc::$instance->libc;
     if ($i === 0) {
       Libc::setsid();
+//    $libc->ioctl($this->slave, Libc::TIOCSCTTY, 0);
     }
     // set stdin/stdout
     $n = count($this->pipes);
     if ($i === 0) {
       Libc::dup2($this->slave, 0);
-Libc::setRawMode(0);
+      Libc::setRawMode(0);
     }
     if ($i > 0) {
       Libc::dup2($this->pipes[$i - 1][0], 0);
@@ -118,6 +118,8 @@ Libc::setRawMode(0);
       Libc::close($p[1]);
     }
     $this->applyRedirects($redirects);
+    // $libc->setpgid(0, 0);
+    // $libc->tcsetpgrp(0, $libc->getpgrp());
     Libc::execvp($argv);
     exit(127); // in case of exec failed
   }
@@ -138,6 +140,14 @@ Libc::setRawMode(0);
         continue;
       }
       Libc::dup2($fd, $r['fd']);
+    }
+  }
+
+  public function childEnd() {
+    while (($pid = pcntl_waitpid(-1, $status, WNOHANG)) > 0) {
+      if ($pid === $this->lastpid) {
+        $this->run = false;
+      }
     }
   }
 

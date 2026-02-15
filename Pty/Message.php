@@ -29,12 +29,12 @@ class Message {
       throw new \Exception('Unknown message on the line');
     }
     $len = strlen($streamData);
-    $res = fwrite($socket, pack('CCnNN', $type, $returned, $len, $pid, $cid));
+    $res = Libc::write($socket, pack('CCnNN', $type, $returned, $len, $pid, $cid));
     if ($res === false) {
       throw new \Exception('Socket write error');
     }
     if ($len > 0) {
-      $res = fwrite($socket, $streamData);
+      $res = Libc::write($socket, $streamData);
     }
     if ($res === false) {
       throw new \Exception('Socket write error');
@@ -42,7 +42,7 @@ class Message {
   }
 
   public static function receive($socket) {
-    $header = fread($socket, 12);
+    $header = Libc::read($socket, 12);
     if ($header === false || $header === '') {
       return false;
     }
@@ -50,7 +50,7 @@ class Message {
     $len = $data['length'];
     $streamData = '';
     while (strlen($streamData) < $len) {
-      $chunk = fread($socket, $len - strlen($streamData));
+      $chunk = Libc::read($socket, $len - strlen($streamData));
       if ($chunk === false || $chunk === '') {
         return false;
       }

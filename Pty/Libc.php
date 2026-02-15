@@ -15,7 +15,7 @@ class Libc {
   const O_APPEND = 0x400;
   const O_NONBLOCK = 0x800;
 
-  const PF_UNIX = 1;
+  const AF_UNIX = 1;
   const SOCK_STREAM = 1;
 
   const TCSANOW = 0;
@@ -25,6 +25,13 @@ class Libc {
   const IXON = 0002000;
   const ICRNL = 0000400;
   const OPOST = 0000001;
+
+  const POLLIN = 0x001;
+  const POLLERR = 0x008;
+  const POLLHUP = 0x010;
+  const POLLNVAL = 0x020;
+
+  const TIOCSCTTY = 0x540E;
 
   public static $instance;
 
@@ -66,22 +73,40 @@ class Libc {
   public static function socketpair() {
     $libc = self::$instance->libc;
     $sv = \FFI::new("int[2]");
-    $libc->socketpair(self::PF_UNIX, self::SOCK_STREAM, 0, $sv);
+    $libc->socketpair(self::AF_UNIX, self::SOCK_STREAM, 0, $sv);
     return [$sv[0], $sv[1]];
   }
 
-  public static function read($fd, $len) {
+  public static function errno(): int {
     $libc = self::$instance->libc;
-    $buf = \FFI::new("char[{$len}]");
+    $ptr = $libc->__errno_location();
+    return $ptr[0];
+  }
+
+  public static function read(int $fd, int $len, bool $debug = false): string|false {
+    $libc = self::$instance->libc;
+    $buf = \FFI::new("char[$len]");
     $n = $libc->read($fd, $buf, $len);
     if ($n > 0) {
-      $data = \FFI::string($buf, $n);
-    } else if ($n === 0) {
-      $data = false; // EOF
-    } else {
-      $data = ''; // EAGAIN or ERROR
+      return \FFI::string($buf, $n);
     }
-    return $data;
+    if ($n === 0) {
+      return false; // EOF
+    }
+    $e = self::errno();
+    // no data available (nonblocking)
+    if ($e === 11) { // EAGAIN
+      return '';
+    }
+    // interrupted by signal
+    if ($e === 4) { // EINTR
+      return ''; // or retry read in a loop
+    }
+    // PTY special: often indicates slave closed / hangup
+    if ($e === 5) { // EIO
+      return false; // treat as EOF/hangup for PTY master
+    }
+    throw new \RuntimeException("read($fd) failed errno=$e");
   }
 
   public static function write($fd, $str) {
@@ -140,6 +165,37 @@ class Libc {
     if ($libc->tcsetattr($fd, self::TCSANOW, \FFI::addr($t)) !== 0) {
       throw new \Exception("tcsetattr failed");
     }
+  }
+
+  public static function pollN(...$fdsp) {
+    $libc = self::$instance->libc;
+    $n = count($fdsp);
+    $fds = $libc->new("struct pollfd[{$n}]");
+    $ready = [];
+    foreach ($fdsp as $i => $fd) {
+      $fds[$i]->fd = $fd;
+      $fds[$i]->events = self::POLLIN;
+      $fds[$i]->revents = 0;
+      $ready[$i] = false;
+    }
+    $ret = $libc->poll($fds, $n, -1);
+    if ($ret > 0) {
+      foreach ($fds as $i => $fd) {
+        if ($fd->revents & self::POLLNVAL) {
+          throw new RuntimeException("poll: fd {$fd->fd} is invalid (POLLNVAL)");
+        }
+        if ($fd->revents & self::POLLERR) {
+          echo "poll: fd {$i} has POLLERR\n";
+        }
+        if ($fd->revents & self::POLLHUP) {
+          echo "poll: fd {$i} has POLLHUP\n";
+        }
+        if ($fd->revents & self::POLLIN) {
+          $ready[$i] = true;
+        }
+      }
+    }
+    return $ready;
   }
 
 }

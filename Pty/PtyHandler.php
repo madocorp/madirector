@@ -12,7 +12,7 @@ class PtyHandler {
 
   public function __construct($commander) {
     $this->since = microtime(true);
-    $socket = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, 0);
+    $socket = Libc::socketpair();
     if ($socket === false) {
       throw new \Exception('Creating socket pair failed!');
     }
@@ -20,14 +20,14 @@ class PtyHandler {
     if ($this->pid == -1) {
       throw new \Exception('Could not fork!');
     } else if ($this->pid === 0) {
-      fclose($socket[0]); // child closes parent end
+      Libc::close($socket[0]); // child closes parent end
       $commander->cleanupInChild();
       new Pty($socket[1]);
       exit(0);
     } else {
-      fclose($socket[1]); // parent closes child end
+      Libc::close($socket[1]); // parent closes child end
       $this->socket = $socket[0];
-      stream_set_blocking($this->socket, false);
+      Libc::setNonBlocking($this->socket, false);
     }
   }
 
