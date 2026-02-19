@@ -41,46 +41,57 @@ class Executor {
   }
 
   private function runPipeline($commands) {
-    $n = count($commands);
-    for ($i = 0; $i < $n - 1; $i++) {
+    $nCmd = count($commands);
+    $nPipes = $nCmd - 1;
+    for ($i = 0; $i < $nPipes; $i++) {
       $this->pipes[$i] = Libc::socketpair();
     }
     $pids = [];
-    for ($i = 0; $i < $n; $i++) {
+    for ($i = 0; $i < $nCmd; $i++) {
       $pid = pcntl_fork();
       if ($pid === 0) {
         $this->child($i, $commands[$i]['redirects'], $commands[$i]['argv']); // won't return!
       }
       $pids[] = $pid;
     }
+    Libc::close($this->slave);
     foreach ($this->pipes as $p) {
       Libc::close($p[0]);
       Libc::close($p[1]);
     }
     $this->lastpid = end($pids);
     pcntl_signal(SIGCHLD, [$this, 'childEnd']);
+try {
     while ($this->run) {
       $ready = Libc::pollN($this->inputSocket, $this->master);
-      if ($ready[0]) {
+      if ($ready[0] == 'IN' || $ready[0] == 'HUP') {
         while (true) {
           $msg = Message::receive($this->inputSocket);
+echo "MSG RECEIVED in executor (input)\n";
           if ($msg === false) {
             break;
           }
           $res = Libc::write($this->master, $msg['input']);
         }
       }
-      if ($ready[1]) {
+      if ($ready[1] == 'IN' || $ready[1] == 'HUP') {
         while (true) {
           $data = Libc::read($this->master, 8192);
           if ($data === false || $data === '') {
-var_dump($data);
             break;
           }
           call_user_func($this->outputFunc, $data);
         }
       }
+      pcntl_signal_dispatch();
+      if ($ready[0] == 'HUP' || $ready[1] == 'HUP') {
+        $this->run = false;
+      }
     }
+} catch (\Exception $e) {
+  echo "EXCEPTION!!!!!!!\n";
+  echo $e->getMessage();
+}
     foreach ($pids as $pid) {
       $res = pcntl_waitpid($pid, $status, WNOHANG);
     }
@@ -91,21 +102,20 @@ var_dump($data);
     $libc = Libc::$instance->libc;
     if ($i === 0) {
       Libc::setsid();
-//    $libc->ioctl($this->slave, Libc::TIOCSCTTY, 0);
+      $libc->ioctl($this->slave, Libc::TIOCSCTTY, 0);
     }
     // set stdin/stdout
-    $n = count($this->pipes);
+    $nPipes = count($this->pipes);
+    $nCmd = $nPipes + 1;
     if ($i === 0) {
       Libc::dup2($this->slave, 0);
-      Libc::setRawMode(0);
     }
     if ($i > 0) {
       Libc::dup2($this->pipes[$i - 1][0], 0);
     }
-    if ($i < $n - 1) {
+    if ($i < $nPipes) {
       Libc::dup2($this->pipes[$i][1], 1);
-    }
-    if ($n === 0 || $i === $n - 1) {
+    } else {
       Libc::dup2($this->slave, 1);
     }
     // set strderr
@@ -118,8 +128,8 @@ var_dump($data);
       Libc::close($p[1]);
     }
     $this->applyRedirects($redirects);
-    // $libc->setpgid(0, 0);
-    // $libc->tcsetpgrp(0, $libc->getpgrp());
+//     $libc->setpgid(0, 0);
+//     $libc->tcsetpgrp(0, $libc->getpgrp());
     Libc::execvp($argv);
     exit(127); // in case of exec failed
   }

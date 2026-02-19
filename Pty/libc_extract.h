@@ -19,6 +19,12 @@ struct pollfd {
   short events;
   short revents;
 };
+struct winsize {
+  uint16_t ws_row;
+  uint16_t ws_col;
+  uint16_t ws_xpixel;
+  uint16_t ws_ypixel;
+};
 
 int tcgetattr(int fd, struct termios *termios_p);
 int tcsetattr(int fd, int optional_actions, const struct termios *termios_p);

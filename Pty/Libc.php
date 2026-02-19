@@ -32,6 +32,8 @@ class Libc {
   const POLLNVAL = 0x020;
 
   const TIOCSCTTY = 0x540E;
+  const TIOCSWINSZ = 0x5414;
+  const TIOCGWINSZ = 0x5413;
 
   public static $instance;
 
@@ -106,7 +108,7 @@ class Libc {
     if ($e === 5) { // EIO
       return false; // treat as EOF/hangup for PTY master
     }
-    throw new \RuntimeException("read($fd) failed errno=$e");
+    throw new \Exception("read($fd) failed errno=$e");
   }
 
   public static function write($fd, $str) {
@@ -176,26 +178,40 @@ class Libc {
       $fds[$i]->fd = $fd;
       $fds[$i]->events = self::POLLIN;
       $fds[$i]->revents = 0;
-      $ready[$i] = false;
+      $ready[$i] = 'NO';
     }
     $ret = $libc->poll($fds, $n, -1);
     if ($ret > 0) {
       foreach ($fds as $i => $fd) {
         if ($fd->revents & self::POLLNVAL) {
-          throw new RuntimeException("poll: fd {$fd->fd} is invalid (POLLNVAL)");
+          throw new \Exception("poll: fd {$fd->fd} is invalid (POLLNVAL)");
         }
         if ($fd->revents & self::POLLERR) {
-          echo "poll: fd {$i} has POLLERR\n";
+          throw new \Exception("poll: fd {$i} has POLLERR");
         }
         if ($fd->revents & self::POLLHUP) {
-          echo "poll: fd {$i} has POLLHUP\n";
+          $ready[$i] = 'HUP';
         }
         if ($fd->revents & self::POLLIN) {
-          $ready[$i] = true;
+          $ready[$i] = 'IN';
         }
       }
     }
     return $ready;
+  }
+
+  public static function setSize(int $fd, int $rows, int $cols): void {
+    $libc = self::$instance->libc;
+    $ws = $libc->new("struct winsize");
+    $ws->ws_row = $rows;
+    $ws->ws_col = $cols;
+    $ws->ws_xpixel = 0;
+    $ws->ws_ypixel = 0;
+    $ret = $libc->ioctl($fd, self::TIOCSWINSZ, \FFI::addr($ws));
+    if ($ret !== 0) {
+      $err = self::errno();
+      throw new \Exception("ioctl(TIOCSWINSZ) failed, errno={$err}");
+    }
   }
 
 }

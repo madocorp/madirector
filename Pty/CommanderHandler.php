@@ -32,6 +32,7 @@ class CommanderHandler {
     self::$commandId++;
     $commandId = self::$commandId;
     self::$commands[$commandId] = $command;
+echo "MSG SENT main->commander (run)\n";
     Message::send(self::$commanderSocket, [
       'cid' => $commandId,
       'command' => $command->command
@@ -40,6 +41,7 @@ class CommanderHandler {
   }
 
   public static function sendInput($cid, $input) {
+echo "MSG SENT main->commander (input)\n";
     Message::send(self::$commanderSocket, [
       'cid' => $cid,
       'input' => $input
@@ -55,6 +57,7 @@ class CommanderHandler {
       if (!isset($response['cid'])) {
         throw new \Exception("Received message is not a valid command result");
       }
+echo "MSG RECEIVED in main from commander\n";
       $commandId = $response['cid'];
       if (isset(self::$commands[$commandId])) {
         $command = self::$commands[$commandId];

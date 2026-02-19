@@ -7,8 +7,6 @@ require_once 'Command/Executor.php';
 
 class Pty {
 
-  const MAX_IDLE_TIME = 600;
-
   private $pid;
   private $cid;
   private $socket;
@@ -25,18 +23,35 @@ class Pty {
     Libc::setNonBlocking($this->socket);
     Libc::openpty($this->master, $this->slave);
     Libc::setNonBlocking($this->master);
-    $idleSince = microtime(true);
-    while (true) {
+    Libc::setSize($this->master, 24, 80);
+    $end = false;
+    while (!$end) {
       $ready = Libc::pollN($this->socket);
-      if ($ready[0]) {
+      if ($ready[0] == 'IN' || $ready[0] == 'HUP') {
         $command = Message::receive($this->socket);
+echo "MSG RECEIVED in pty\n";
       }
-      if ($command === false) {
-        break;
+      if ($ready[0] == 'HUP') {
+        $end = true;
       }
-      $this->runCommand($command);
-      $idleSince = microtime(true);
+      if ($command === false || $command === '') {
+        continue;
+      }
+      $end = true;
     }
+    $this->cid = $command['cid'];
+echo "EXECUTE {$command['command']}\n";
+    $executor = new \MADIR\Command\Executor($command['command'], $this->master, $this->slave, [$this, 'sendOutput'], $this->socket);
+echo "DONE\n";
+    Message::send($this->socket, [
+      'cid' => $this->cid,
+      'pid' => $this->pid,
+      'returned' => 0 // exexutor->status
+    ]);
+echo "MSG SENT commander<-pty (returned)\n";
+
+echo "END {$command['command']}\n";
+    exit(0);
   }
 
   public function sendOutput($output) {
@@ -45,17 +60,7 @@ class Pty {
       'pid' => $this->pid,
       'output' => $output
     ]);
-  }
-
-  private function runCommand($command) {
-    $this->cid = $command['cid'];
-    $executor = new \MADIR\Command\Executor($command['command'], $this->master, $this->slave, [$this, 'sendOutput'], $this->socket);
-    Message::send($this->socket, [
-      'cid' => $this->cid,
-      'pid' => $this->pid,
-      'returned' => 0
-    ]);
-    $this->cid = false;
+echo "MSG SENT commander<-pty (output)\n";
   }
 
 }
