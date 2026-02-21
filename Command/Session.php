@@ -18,7 +18,7 @@ class Session {
     self::$sessions[] = $this;
     self::$current = count(self::$sessions) - 1;
     $this->runCommand(false);
-    $this->selected = 1;
+    $this->selected = 0;
   }
 
   public function runCommand($command) {
@@ -26,7 +26,7 @@ class Session {
   }
 
   public function getVisibleCommands() {
-    $toSelected = array_slice($this->commands, 0, $this->selected);
+    $toSelected = array_slice($this->commands, 0, $this->selected + 1);
     return array_reverse($toSelected);
   }
 
@@ -35,12 +35,24 @@ class Session {
   }
 
   public function nextCommand() {
-    $this->selected = min(count($this->commands), $this->selected + 1);
+    $this->selected = min(count($this->commands) - 1, $this->selected + 1);
   }
 
   public function endCommand() {
-    if ($this->selected === count($this->commands) - 1) {
+    if ($this->selected === count($this->commands) - 2) {
       $this->nextCommand();
+    }
+  }
+
+  public function toggleGrab() {
+    $command = $this->commands[$this->selected];
+    if ($command->isNew()) {
+      return;
+    }
+    if ($command->grab) {
+      $command->grab = false;
+    } else {
+      $command->grab = true;
     }
   }
 

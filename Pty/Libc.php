@@ -35,7 +35,10 @@ class Libc {
   const TIOCSWINSZ = 0x5414;
   const TIOCGWINSZ = 0x5413;
 
+  const BUFFER_LIMIT = 1048576; // 1MB
+
   public static $instance;
+  private static $buffer;
 
   public $libc;
 
@@ -44,6 +47,7 @@ class Libc {
       die("MADIR\\Libc is a singleton, you can't instantiate more than once");
     }
     self::$instance = $this;
+    self::$buffer = \FFI::new("char[" . self::BUFFER_LIMIT . "]");
     $this->libc = \FFI::cdef(file_get_contents(dirname(APP_PATH) . "/Pty/libc_extract.h"), "libc.so.6");
   }
 
@@ -85,30 +89,47 @@ class Libc {
     return $ptr[0];
   }
 
-  public static function read(int $fd, int $len, bool $debug = false): string|false {
+  public static function read(int $fd, int $len, $debug = false): string|false {
+    $len = min($len, self::BUFFER_LIMIT);
     $libc = self::$instance->libc;
-    $buf = \FFI::new("char[$len]");
-    $n = $libc->read($fd, $buf, $len);
-    if ($n > 0) {
-      return \FFI::string($buf, $n);
+    $res = [];
+    $total = 0;
+    while (true) {
+      $n = $libc->read($fd, self::$buffer, $len);
+      if ($n > 0) {
+        $res[] = \FFI::string(self::$buffer, $n);
+        $total += $n;
+        if ($total >= $len) {
+          break;
+        }
+        continue;
+      }
+      if ($n === 0) {
+        if ($total === 0) {
+          return false; // EOF
+        }
+        break;
+      }
+      $e = self::errno();
+      // no data available (nonblocking)
+      if ($e === 11) { // EAGAIN
+        break;
+      }
+      // interrupted by signal
+      if ($e === 4) { // EINTR
+        break;
+      }
+      // PTY special: often indicates slave closed / hangup
+      if ($e === 5) { // EIO
+        if ($total === 0) {
+          return false; // treat as EOF/hangup for PTY master
+        }
+        break;
+      }
+    //  throw new \Exception("read($fd) failed errno=$e");
+echo "read($fd) failed errno=$e\n";
     }
-    if ($n === 0) {
-      return false; // EOF
-    }
-    $e = self::errno();
-    // no data available (nonblocking)
-    if ($e === 11) { // EAGAIN
-      return '';
-    }
-    // interrupted by signal
-    if ($e === 4) { // EINTR
-      return ''; // or retry read in a loop
-    }
-    // PTY special: often indicates slave closed / hangup
-    if ($e === 5) { // EIO
-      return false; // treat as EOF/hangup for PTY master
-    }
-    throw new \Exception("read($fd) failed errno=$e");
+    return implode('', $res);
   }
 
   public static function write($fd, $str) {
