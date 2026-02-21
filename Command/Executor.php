@@ -61,13 +61,11 @@ class Executor {
     }
     $this->lastpid = end($pids);
     pcntl_signal(SIGCHLD, [$this, 'childEnd']);
-try {
     while ($this->run) {
       $ready = Libc::pollN($this->inputSocket, $this->master);
       if ($ready[0] == 'IN' || $ready[0] == 'HUP') {
         while (true) {
           $msg = Message::receive($this->inputSocket);
-echo "MSG RECEIVED in executor (input)\n";
           if ($msg === false) {
             break;
           }
@@ -76,7 +74,7 @@ echo "MSG RECEIVED in executor (input)\n";
       }
       if ($ready[1] == 'IN' || $ready[1] == 'HUP') {
         while (true) {
-          $data = Libc::read($this->master, 8192);
+          $data = Libc::read($this->master, 8192, true);
           if ($data === false || $data === '') {
             break;
           }
@@ -88,10 +86,6 @@ echo "MSG RECEIVED in executor (input)\n";
         $this->run = false;
       }
     }
-} catch (\Exception $e) {
-  echo "EXCEPTION!!!!!!!\n";
-  echo $e->getMessage();
-}
     foreach ($pids as $pid) {
       $res = pcntl_waitpid($pid, $status, WNOHANG);
     }

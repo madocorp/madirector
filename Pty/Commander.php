@@ -2,10 +2,6 @@
 
 namespace MADIR\Pty;
 
-require_once 'Pty/PtyHandler.php';
-require_once 'Pty/Pty.php';
-require_once 'Pty/Libc.php';
-
 class Commander {
 
   private $ptys = [];
@@ -32,7 +28,6 @@ class Commander {
       $ready = Libc::pollN(...$fds);
       while (!empty($this->deathReport)) {
         $msg = array_shift($this->deathReport);
-echo "MSG SENT main<-commander (death)\n";
         Message::send($this->commanderSocket, $msg);
       }
       foreach ($ready as $i => $read) {
@@ -43,7 +38,6 @@ echo "MSG SENT main<-commander (death)\n";
               $ok = false;
               continue;
             }
-echo "MSG RECEIVED in commander from main\n";
             if (isset($message['input'])) {
               $this->sendInput($message);
             }
@@ -56,7 +50,6 @@ echo "MSG RECEIVED in commander from main\n";
               $ok = false;
               continue;
             }
-echo "MSG RECEIVED in commander from pty\n";
             $this->forwardResponse($ptyResponse);
           }
         }
@@ -71,24 +64,20 @@ echo "MSG RECEIVED in commander from pty\n";
   }
 
   private function sendInput($input) {
-echo "SEND INPUT {$input['cid']}\n";
     $selectedPty = false;
     foreach ($this->ptys as $pty) {
-var_dump($pty->cid);
       if ($pty->cid === $input['cid']) {
         $selectedPty = $pty;
         break;
       }
     }
     if ($selectedPty !== false) {
-echo "SEND...\n";
       $selectedPty->sendInput($input['input']);
     }
   }
 
   private function forwardResponse($ptyResponse) {
     Message::send($this->commanderSocket, $ptyResponse);
-echo "MSG SENT main<-commander (returned)\n";
     if (isset($ptyResponse['returned'])) {
       $pid = $ptyResponse['pid'];
       unset($this->ptys[$pid]);

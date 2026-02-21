@@ -2,9 +2,6 @@
 
 namespace MADIR\Pty;
 
-require_once 'Command/CommandParser.php';
-require_once 'Command/Executor.php';
-
 class Pty {
 
   private $pid;
@@ -14,7 +11,6 @@ class Pty {
   private $slave;
 
   public function __construct($socket) {
-//    pcntl_async_signals(true);
     cli_set_process_title('MADIRPty');
     putenv("LANG=en_US.UTF-8");
     putenv("TERM=xterm-256color");
@@ -29,7 +25,6 @@ class Pty {
       $ready = Libc::pollN($this->socket);
       if ($ready[0] == 'IN' || $ready[0] == 'HUP') {
         $command = Message::receive($this->socket);
-echo "MSG RECEIVED in pty\n";
       }
       if ($ready[0] == 'HUP') {
         $end = true;
@@ -40,17 +35,12 @@ echo "MSG RECEIVED in pty\n";
       $end = true;
     }
     $this->cid = $command['cid'];
-echo "EXECUTE {$command['command']}\n";
     $executor = new \MADIR\Command\Executor($command['command'], $this->master, $this->slave, [$this, 'sendOutput'], $this->socket);
-echo "DONE\n";
     Message::send($this->socket, [
       'cid' => $this->cid,
       'pid' => $this->pid,
       'returned' => 0 // exexutor->status
     ]);
-echo "MSG SENT commander<-pty (returned)\n";
-
-echo "END {$command['command']}\n";
     exit(0);
   }
 
@@ -60,7 +50,6 @@ echo "END {$command['command']}\n";
       'pid' => $this->pid,
       'output' => $output
     ]);
-echo "MSG SENT commander<-pty (output)\n";
   }
 
 }

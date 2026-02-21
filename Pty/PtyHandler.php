@@ -31,12 +31,10 @@ class PtyHandler {
 
   public function runCommand($command) {
     $this->cid = $command['cid'];
-echo "MSG SENT commander->pty (run)\n";
     Message::send($this->socket, $command);
   }
 
   public function sendInput($input) {
-echo "MSG SENT commander->pty (input)\n";
     Message::send($this->socket, ['cid' => $this->cid, 'input' => $input]);
   }
 

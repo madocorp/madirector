@@ -2,16 +2,11 @@
 
 define('SPTK\DEBUG', true);
 define('APP_PATH', __FILE__);
+define('APP_NAMESPACE', 'MADIR');
 
-require_once 'Pty/Message.php';
-require_once 'Pty/CommanderHandler.php';
-require_once 'Pty/Commander.php';
+require_once 'SPTK/Autoload.php';
+
 \MADIR\Pty\CommanderHandler::init();
-
-require_once 'SPTK/App.php';
-require_once 'Screen/Controller.php';
-require_once 'Command/Session.php';
-require_once 'Command/Command.php';
 
 new \SPTK\App(
   'Layout/madirector.xml',

@@ -4,7 +4,7 @@ namespace MADIR\Screen;
 
 class Controller {
 
-  private static $newInput = true;
+  private static $inputElement = false;
   private static $commandGap = 10;
 
   public static function init() {
@@ -14,19 +14,25 @@ class Controller {
   }
 
   public static function keyPressHandler($element, $event) {
-    switch (\SPTK\KeyCombo::resolve($event['mod'], $event['scancode'], $event['key'])) {
-      case \SPTK\Action::CLOSE:
+    switch (\SPTK\SDLWrapper\KeyCombo::resolve($event['mod'], $event['scancode'], $event['key'])) {
+      case \SPTK\SDLWrapper\Action::CLOSE:
         exit(0);
-      case \SPTK\Action::DO_IT:
+      case \SPTK\SDLWrapper\KeyCode::F12:
+        $session = \MADIR\Command\Session::getCurrent();
+        $session->toggleGrab();
+        self::listCommands();
+        \SPTK\Element::refresh();
+        return true;
+      case \SPTK\SDLWrapper\Action::DO_IT:
         self::runCommand();
         return true;
-      case \SPTK\Action::PAGE_UP:
+      case \SPTK\SDLWrapper\Action::PAGE_UP:
         $session = \MADIR\Command\Session::getCurrent();
         $session->previousCommand();
         self::listCommands();
         \SPTK\Element::refresh();
         return true;
-      case \SPTK\Action::PAGE_DOWN:
+      case \SPTK\SDLWrapper\Action::PAGE_DOWN:
         $session = \MADIR\Command\Session::getCurrent();
         $session->nextCommand();
         self::listCommands();
@@ -45,9 +51,11 @@ class Controller {
     $cmd = new \SPTK\Element($block, false, 'new', 'Command');
     $label = new \SPTK\Element($cmd, false, 'prompt', 'Label');
     $label->setText('$');
-    self::$newInput = new \SPTK\Input($label, false, 'cmd');
-    self::$newInput->addClass('active', true);
-    self::$newInput->raise();
+    $input = new \SPTK\Elements\Input($label, false, 'cmd');
+    $input->addClass('active', true);
+    if (self::$inputElement === false) {
+      self::$inputElement = $input;
+    }
     $block->recalculateGeometry();
     $geometry = $block->getGeometry();
     return $y + $geometry->height + self::$commandGap;
@@ -62,24 +70,35 @@ class Controller {
     $info->setText(getcwd());
     $cmd = new \SPTK\Element($block, false, $command->returnValue === false ? 'run' : 'done', 'Command');
     $cmd->setText('$ ' . $command->command);
-    $result = new \SPTK\Terminal($block);
-    $result->setBuffer($command->screenBuffer);
-    $result->setInputCallback([$command, 'input']);
+    $terminal = new \SPTK\Elements\Terminal($block);
+    $terminal->setBuffer($command->screenBuffer);
+    $terminal->setInputCallback([$command, 'input']);
+    if ($command->grab) {
+      $terminal->grabInput();
+    } else {
+      $terminal->releaseInput();
+    }
+    if (self::$inputElement === false) {
+      self::$inputElement = $terminal;
+    }
     $block->recalculateGeometry();
     $geometry = $block->getGeometry();
     return $y + $geometry->height + self::$commandGap;
   }
 
   public static function runCommand() {
-    if (self::$newInput === false) {
+    if (self::$inputElement === false) {
       return;
     }
-    $command = self::$newInput->getValue();
-    self::$newInput = false;
-    $session = \MADIR\Command\Session::getCurrent();
-    $session->runCommand($command);
-    self::listCommands();
-    \SPTK\Element::refresh();
+    if (self::$inputElement->getType() === 'Input') {
+      $command = self::$inputElement->getValue();
+      $session = \MADIR\Command\Session::getCurrent();
+      $session->runCommand($command);
+      self::listCommands();
+      \SPTK\Element::refresh();
+    } else {
+      // focus
+    }
   }
 
   public static function listCommands() {
@@ -88,7 +107,7 @@ class Controller {
     $geometry = $window->getGeometry();
     $session = \MADIR\Command\Session::getCurrent();
     $commands = $session->getVisibleCommands();
-    self::$newInput = false;
+    self::$inputElement = false;
     $y = self::$commandGap;
     foreach ($commands as $i => $command) {
       if ($command->isNew()) {
@@ -100,8 +119,8 @@ class Controller {
         break;
       }
     }
-    if (self::$newInput !== false) {
-      self::$newInput->raise();
+    if (self::$inputElement !== false) {
+      self::$inputElement->raise();
     }
   }
 

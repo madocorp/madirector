@@ -9,6 +9,7 @@ class Command {
   public $started = false;
   public $done = false;
   public $returnValue = false;
+  public $grab = true;
   public $screenBuffer;
   public $cid;
 
@@ -16,7 +17,7 @@ class Command {
     $this->command = $command;
     $this->session = $session;
     if ($command !== false) {
-      $this->screenBuffer = new \SPTK\Terminal\ScreenBuffer;
+      $this->screenBuffer = new \SPTK\Elements\Terminal\ScreenBuffer;
       $this->cid = \MADIR\Pty\CommanderHandler::runCommand($this);
     }
   }
@@ -25,7 +26,7 @@ class Command {
     $this->screenBuffer->parse($stream);
 
 // TODO: detect size changes!
-\MADIR\Screen\Controller::listCommands();
+//\MADIR\Screen\Controller::listCommands();
 \SPTK\Element::refresh();
 
   }
@@ -36,6 +37,7 @@ class Command {
 
   public function end() {
     $this->returnValue = 0;
+    $this->grab = false;
     $this->session->endCommand();
     \MADIR\Screen\Controller::listCommands();
     \SPTK\Element::refresh();
