@@ -1,5 +1,5 @@
 <?php
-
+// DEBUGLEVEL:8
 namespace MADIR\Pty;
 
 class CommanderHandler {
@@ -7,6 +7,7 @@ class CommanderHandler {
   private static $commanderSocket;
   private static $commands = [];
   private static $commandId = 0;
+  private static $pid;
 
   public static function init() {
     new Libc;
@@ -14,14 +15,15 @@ class CommanderHandler {
     if ($socket === false) {
       throw new \Exception('Creating socket pair failed!');
     }
-    $pid = pcntl_fork();
-    if ($pid == -1) {
+    self::$pid = pcntl_fork();
+    if (self::$pid == -1) {
       throw new \Exception('Could not fork!');
-    } else if ($pid === 0) {
+    } else if (self::$pid === 0) {
       Libc::close($socket[0]); // child closes parent end
       new Commander($socket[1]);
       exit(0);
     }
+    pcntl_signal(SIGCHLD, [CommanderHandler::class, 'childEnd']);
     Libc::close($socket[1]); // parent closes child end
     self::$commanderSocket = $socket[0];
     Libc::setNonBlocking(self::$commanderSocket);
@@ -32,6 +34,7 @@ class CommanderHandler {
     self::$commandId++;
     $commandId = self::$commandId;
     self::$commands[$commandId] = $command;
+    // DEBUG:8 echo "MSGSND: main->commander [command]\n";
     Message::send(self::$commanderSocket, [
       'cid' => $commandId,
       'command' => $command->command
@@ -40,31 +43,41 @@ class CommanderHandler {
   }
 
   public static function sendInput($cid, $input) {
+    // DEBUG:8 echo "MSGSND: main->commander [input]\n";
     Message::send(self::$commanderSocket, [
       'cid' => $cid,
       'input' => $input
     ]);
   }
 
-  public static function getResults() {
-    while (true) {
-      $response = Message::receive(self::$commanderSocket);
-      if ($response === false) {
-        break;
+  public static function loop() {
+    $events = Libc::pollAndReceive(0, [self::$commanderSocket]);
+    foreach ($events as $item) {
+      $message = $item['msg'];
+      if ($message === false) {
+        echo "Commander socket has been closed\n";
+        exit(1);
       }
-      if (!isset($response['cid'])) {
-        throw new \Exception("Received message is not a valid command result");
-      }
-      $commandId = $response['cid'];
+      $commandId = $message['cid'];
       if (isset(self::$commands[$commandId])) {
         $command = self::$commands[$commandId];
-        if (isset($response['returned'])) {
-          $command->end($response['returned']);
+        if (isset($message['return'])) {
+          // DEBUG:8 echo "MSGRCV: main [return]\n";
+          $command->end($message['return']);
           unset(self::$commands[$commandId]);
         } else {
-          $command->output($response['output']);
+          // DEBUG:8 echo "MSGRCV: main [output]\n";
+          $command->output($message['output']);
         }
       }
+    }
+  }
+
+  public static function childEnd() {
+    $pid = pcntl_waitpid(-1, $status);
+    if ($pid === self::$pid) {
+      echo "Commander exited: {$status}\n";
+      exit(1);
     }
   }
 

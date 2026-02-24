@@ -70,7 +70,7 @@ class Controller {
     $info->setText(getcwd());
     $cmd = new \SPTK\Element($block, false, $command->returnValue === false ? 'run' : 'done', 'Command');
     $cmd->setText('$ ' . $command->command);
-    $terminal = new \SPTK\Elements\Terminal($block);
+    $terminal = new Terminal($block);
     $terminal->setBuffer($command->screenBuffer);
     $terminal->setInputCallback([$command, 'input']);
     if ($command->grab) {

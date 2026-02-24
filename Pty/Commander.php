@@ -1,5 +1,5 @@
 <?php
-
+// DEBUGLEVEL:8
 namespace MADIR\Pty;
 
 class Commander {
@@ -10,48 +10,42 @@ class Commander {
   private $isChild = false;
 
   public function __construct($commanderSocket) {
+    \SPTK\Autoload::load('\MADIR\Pty\Pty');
+    \SPTK\Autoload::load('\MADIR\Command\Executor');
+    \SPTK\Autoload::load('\MADIR\Command\CommandParser');
     $this->commanderSocket = $commanderSocket;
+    Libc::setNonBlocking($this->commanderSocket);
     cli_set_process_title('MADIRCommander');
     register_shutdown_function([$this, 'end']);
     pcntl_signal(SIGCHLD, [$this, 'childEnd']);
-    pcntl_async_signals(true);
     $this->waitForMessage();
   }
 
   private function waitForMessage() {
-    $ok = true;
-    while ($ok) {
+    while (true) {
       $fds = [$this->commanderSocket];
-      foreach ($this->ptys as $pty) {
-        $fds[] = $pty->socket;
-      }
-      $ready = Libc::pollN(...$fds);
-      while (!empty($this->deathReport)) {
-        $msg = array_shift($this->deathReport);
-        Message::send($this->commanderSocket, $msg);
-      }
-      foreach ($ready as $i => $read) {
-        if ($read == 'IN' || $read == 'HUP') {
-          if ($i === 0) {
-            $message = Message::receive($this->commanderSocket);
-            if ($message === false) {
-              $ok = false;
-              continue;
-            }
-            if (isset($message['input'])) {
-              $this->sendInput($message);
-            }
-            if (isset($message['command'])) {
-              $this->delegateCommand($message);
-            }
-          } else {
-            $ptyResponse = Message::receive($fds[$i]);
-            if ($ptyResponse === false) {
-              $ok = false;
-              continue;
-            }
-            $this->forwardResponse($ptyResponse);
+//      foreach ($this->ptys as $pty) {
+//        $fds[] = $pty->socket;
+//      }
+      $events = Libc::pollAndReceive(-1, $fds);
+      foreach ($events as $item) {
+        $fd  = $item['fd'];
+        $message = $item['msg'];
+        if ($message === false) {
+          echo "Commander socket has been closed\n";
+          exit(1);
+        }
+        if ($fd === $this->commanderSocket) {
+          if (isset($message['input'])) {
+            // DEBUG:8 echo "MSGRCV: commander [input]\n";
+            $this->sendInput($message);
           }
+          if (isset($message['command'])) {
+            // DEBUG:8 echo "MSGRCV: commander [command]\n";
+            $this->delegateCommand($message);
+          }
+        } else {
+          $this->forwardResponse($message);
         }
       }
     }
@@ -77,8 +71,9 @@ class Commander {
   }
 
   private function forwardResponse($ptyResponse) {
+    // DEBUG:8 echo "MSGSND: commander->main [", (isset($ptyResponse['return']) ? 'return' : 'output'), "]\n";
     Message::send($this->commanderSocket, $ptyResponse);
-    if (isset($ptyResponse['returned'])) {
+    if (isset($ptyResponse['return'])) {
       $pid = $ptyResponse['pid'];
       unset($this->ptys[$pid]);
     }
@@ -112,7 +107,7 @@ class Commander {
           Libc::close($pty->socket);
           $this->deathReport[] = [
             'cid' => $pty->cid,
-            'returned' => $status
+            'return' => $status
           ];
           unset($this->ptys[$pid]);
         }

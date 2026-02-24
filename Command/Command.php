@@ -17,7 +17,7 @@ class Command {
     $this->command = $command;
     $this->session = $session;
     if ($command !== false) {
-      $this->screenBuffer = new \SPTK\Elements\Terminal\ScreenBuffer;
+      $this->screenBuffer = new \MADIR\Screen\ScreenBuffer;
       $this->cid = \MADIR\Pty\CommanderHandler::runCommand($this);
     }
   }
