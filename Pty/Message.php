@@ -4,77 +4,74 @@ namespace MADIR\Pty;
 
 class Message {
 
+  const HDR_LEN = 14;
   const COMMAND = 1;
-  const RETURNED = 2;
+  const RETURN = 2;
   const OUTPUT = 3;
   const INPUT = 4;
 
-  public static function send($socket, $data) {
-    $returned = $data['returned'] ?? 0;
+  public static function send(int $fd, array $data): void {
+    [$type, $return, $pid, $cid, $payload] = self::encode($data);
+    $len = strlen($payload);
+    $header = pack('CCNNN', $type, $return, $len, $pid, $cid);
+    Libc::queueWrite($fd, $header . $payload);
+  }
+
+  public static function receive(int $fd): ?array {
+    $hdr = Libc::peek($fd, self::HDR_LEN);
+    if ($hdr === '') {
+      return null;
+    }
+    $u = unpack('Ctype/Creturn/Nlen/Npid/Ncid', $hdr);
+    if (!$u) {
+      throw new \Exception("Header unpack failed");
+    }
+    $type = $u['type'];
+    $return = $u['return'];
+    $len = $u['len'];
+    $pid = $u['pid'];
+    $cid = $u['cid'];
+    $need = self::HDR_LEN + $len;
+    if (Libc::inLength($fd) < $need) {
+      return null;
+    }
+    Libc::consume($fd, self::HDR_LEN);
+    $payload = ($len > 0) ? Libc::take($fd, $len) : '';
+    return self::decode($type, $return, $pid, $cid, $payload);
+  }
+
+  private static function encode(array $data): array {
+    $return = $data['return'] ?? 0;
     $pid = $data['pid'] ?? 0;
     $cid = $data['cid'] ?? 0;
     if (isset($data['command'])) {
-      $type = self::COMMAND;
-      $streamData = $data['command'];
-    } else if (isset($data['returned'])) {
-      $type = self::RETURNED;
-      $streamData = '';
-    } else if (isset($data['output'])) {
-      $type = self::OUTPUT;
-      $streamData = $data['output'];
-    } else if (isset($data['input'])) {
-      $type = self::INPUT;
-      $streamData = $data['input'];
-    } else {
-      throw new \Exception('Unknown message on the line');
+      return [self::COMMAND, $return, $pid, $cid, (string)$data['command']];
     }
-    $len = strlen($streamData);
-    $res = Libc::write($socket, pack('CCnNN', $type, $returned, $len, $pid, $cid));
-    if ($res === false) {
-      throw new \Exception('Socket write error');
+    if (isset($data['return'])) {
+      return [self::RETURN, $return, $pid, $cid, ''];
     }
-    if ($len > 0) {
-      $res = Libc::write($socket, $streamData);
+    if (isset($data['output'])) {
+      return [self::OUTPUT, $return, $pid, $cid, (string)$data['output']];
     }
-    if ($res === false) {
-      throw new \Exception('Socket write error');
+    if (isset($data['input'])) {
+      return [self::INPUT, $return, $pid, $cid, (string)$data['input']];
     }
+    throw new \InvalidArgumentException('Unknown message');
   }
 
-  public static function receive($socket) {
-    $header = Libc::read($socket, 12);
-    if ($header === false || $header === '') {
-      return false;
-    }
-    $data = unpack('Ctype/Creturned/nlength/Npid/Ncid', $header);
-    $len = $data['length'];
-    $streamData = '';
-    while (strlen($streamData) < $len) {
-      $chunk = Libc::read($socket, $len - strlen($streamData));
-      if ($chunk === false || $chunk === '') {
-        return false;
-      }
-      $streamData .= $chunk;
-    }
-    switch ($data['type']) {
+  private static function decode(int $type, int $return, int $pid, int $cid, string $payload): array {
+    switch ($type) {
       case self::COMMAND:
-        unset($data['returned']);
-        $data['command'] = $streamData;
-        break;
-      case self::RETURNED:
-        break;
+        return ['type' => $type, 'pid' => $pid, 'cid' => $cid, 'command' => $payload];
+      case self::RETURN:
+        return ['type' => $type, 'pid' => $pid, 'cid' => $cid, 'return' => $return];
       case self::OUTPUT:
-        unset($data['returned']);
-        $data['output'] = $streamData;
-        break;
+        return ['type' => $type, 'pid' => $pid, 'cid' => $cid, 'output' => $payload];
       case self::INPUT:
-        unset($data['returned']);
-        $data['input'] = $streamData;
-        break;
+        return ['type' => $type, 'pid' => $pid, 'cid' => $cid, 'input' => $payload];
       default:
-        throw new \Exception('Unknown message on the line');
+        throw new \Exception("Unknown message type=$type");
     }
-    return $data;
   }
 
 }

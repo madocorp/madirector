@@ -1,5 +1,5 @@
 <?php
-
+// DEBUGLEVEL:8
 namespace MADIR\Pty;
 
 class PtyHandler {
@@ -31,10 +31,12 @@ class PtyHandler {
 
   public function runCommand($command) {
     $this->cid = $command['cid'];
+    // DEBUG:8 echo "MSGSND: commander->pty [command]\n";
     Message::send($this->socket, $command);
   }
 
   public function sendInput($input) {
+    // DEBUG:8 echo "MSGSND: commander->pty [input]\n";
     Message::send($this->socket, ['cid' => $this->cid, 'input' => $input]);
   }
 

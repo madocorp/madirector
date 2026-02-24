@@ -8,19 +8,16 @@ use \MADIR\Pty\Message;
 class Executor {
 
   public $returnValue = 0;
+  public $run = true;
   private $master;
   private $slave;
-  private $outputFunc;
-  private $inputSocket;
   private $pipes = [];
-  private $run = true;
+  private $pids = [];
   private $lastpid;
 
-  public function __construct($command, $master, $slave, $outputFunc, $inputSocket) {
+  public function __construct($command, $master, $slave) {
     $this->master = $master;
     $this->slave = $slave;
-    $this->outputFunc = $outputFunc;
-    $this->inputSocket = $inputSocket;
     $parser = new CommandParser;
     $parsedCommand = $parser->parse($command);
     $this->runSequence($parsedCommand);
@@ -46,47 +43,26 @@ class Executor {
     for ($i = 0; $i < $nPipes; $i++) {
       $this->pipes[$i] = Libc::socketpair();
     }
-    $pids = [];
+    $this->pids = [];
     for ($i = 0; $i < $nCmd; $i++) {
       $pid = pcntl_fork();
       if ($pid === 0) {
         $this->child($i, $commands[$i]['redirects'], $commands[$i]['argv']); // won't return!
       }
-      $pids[] = $pid;
+      $this->pids[] = $pid;
     }
     Libc::close($this->slave);
     foreach ($this->pipes as $p) {
       Libc::close($p[0]);
       Libc::close($p[1]);
     }
-    $this->lastpid = end($pids);
+    $this->lastpid = end($this->pids);
     pcntl_signal(SIGCHLD, [$this, 'childEnd']);
-    while ($this->run) {
-      $ready = Libc::pollN($this->inputSocket, $this->master);
-      if ($ready[0] == 'IN' || $ready[0] == 'HUP') {
-        while (true) {
-          $msg = Message::receive($this->inputSocket);
-          if ($msg === false) {
-            break;
-          }
-          $res = Libc::write($this->master, $msg['input']);
-        }
-      }
-      if ($ready[1] == 'IN' || $ready[1] == 'HUP') {
-        while (true) {
-          $data = Libc::read($this->master, 8192, true);
-          if ($data === false || $data === '') {
-            break;
-          }
-          call_user_func($this->outputFunc, $data);
-        }
-      }
-      pcntl_signal_dispatch();
-      if ($ready[0] == 'HUP' || $ready[1] == 'HUP') {
-        $this->run = false;
-      }
-    }
-    foreach ($pids as $pid) {
+
+  }
+
+  public function getStatus() {
+    foreach ($this->pids as $pid) {
       $res = pcntl_waitpid($pid, $status, WNOHANG);
     }
     return pcntl_wexitstatus($status);

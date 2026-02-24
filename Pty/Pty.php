@@ -1,5 +1,5 @@
 <?php
-
+// DEBUGLEVEL:8
 namespace MADIR\Pty;
 
 class Pty {
@@ -20,31 +20,48 @@ class Pty {
     Libc::openpty($this->master, $this->slave);
     Libc::setNonBlocking($this->master);
     Libc::setSize($this->master, 24, 80);
-    $end = false;
-    while (!$end) {
-      $ready = Libc::pollN($this->socket);
-      if ($ready[0] == 'IN' || $ready[0] == 'HUP') {
-        $command = Message::receive($this->socket);
+    $commandReceived = false;
+    while (!$commandReceived) {
+      $this->pollOnce();
+      $command = Message::receive($this->socket);
+      if ($command === '') {
+         continue;
       }
-      if ($ready[0] == 'HUP') {
-        $end = true;
-      }
-      if ($command === false || $command === '') {
-        continue;
-      }
-      $end = true;
+      $commandReceived = true;
     }
+    // DEBUG:8 echo "MSGRCV: pty [command]\n";
     $this->cid = $command['cid'];
-    $executor = new \MADIR\Command\Executor($command['command'], $this->master, $this->slave, [$this, 'sendOutput'], $this->socket);
+    $executor = new \MADIR\Command\Executor($command['command'], $this->master, $this->slave);
+try {
+    while ($executor->run) {
+      $this->pollOnce();
+      while (true) {
+        $msg = Message::receive($this->socket);
+        if ($msg === '') {
+           break; // no full message yet
+        }
+        // handle $msg array...
+       }
+    // Process PTY output (fast path)
+    // If you prefer fully libc-buffered PTY reads, don’t use IO::pumpRead for PTY,
+    // instead do Terminal::readAvailable when poll says POLLIN.
+    // (See note below.)
+    }
+} catch (\Exception $e) {
+  echo $e->getMessage();
+}
+    $status = $executor->getStatus();
+    // DEBG:8 echo "MSGSND: pty->commander [return]\n";
     Message::send($this->socket, [
       'cid' => $this->cid,
       'pid' => $this->pid,
-      'returned' => 0 // exexutor->status
+      'return' => $status
     ]);
     exit(0);
   }
 
-  public function sendOutput($output) {
+  private function sendOutput($output) {
+    // DEBUG:8 echo "MSGSND: pty->commander [output]\n";
     Message::send($this->socket, [
       'cid' => $this->cid,
       'pid' => $this->pid,

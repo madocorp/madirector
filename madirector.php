@@ -12,7 +12,7 @@ new \SPTK\App(
   'Layout/madirector.xml',
   'Layout/style.xss',
   ['\MADIR\Screen\Controller', 'init'],
-  ['\MADIR\Pty\CommanderHandler', 'getResults'],
+  ['\MADIR\Pty\CommanderHandler', 'loop'],
   false,
   false
 );
