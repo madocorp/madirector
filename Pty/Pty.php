@@ -1,5 +1,5 @@
 <?php
-// DEBUGLEVEL:8
+
 namespace MADIR\Pty;
 
 class Pty {
@@ -22,34 +22,42 @@ class Pty {
     Libc::setSize($this->master, 24, 80);
     $commandReceived = false;
     while (!$commandReceived) {
-      $this->pollOnce();
-      $command = Message::receive($this->socket);
-      if ($command === '') {
-         continue;
-      }
-      $commandReceived = true;
-    }
-    // DEBUG:8 echo "MSGRCV: pty [command]\n";
-    $this->cid = $command['cid'];
-    $executor = new \MADIR\Command\Executor($command['command'], $this->master, $this->slave);
-try {
-    while ($executor->run) {
-      $this->pollOnce();
-      while (true) {
-        $msg = Message::receive($this->socket);
-        if ($msg === '') {
-           break; // no full message yet
+      $events = IO::pollAndReceive(-1, [$this->socket]);
+      foreach ($events as $item) {
+        $message = $item['msg'];
+        if ($message === false) {
+          echo "pty socket has been closed A\n";
+          exit(1);
         }
-        // handle $msg array...
-       }
-    // Process PTY output (fast path)
-    // If you prefer fully libc-buffered PTY reads, don’t use IO::pumpRead for PTY,
-    // instead do Terminal::readAvailable when poll says POLLIN.
-    // (See note below.)
+        $commandReceived = true;
+      }
     }
-} catch (\Exception $e) {
-  echo $e->getMessage();
-}
+    // DEBUG:8 echo "MSGRCV: pty [command: {$message['command']}]\n";
+    $this->cid = $message['cid'];
+    $executor = new \MADIR\Command\Executor($message['command'], $this->master, $this->slave);
+    $masterAlive = true;
+    while ($masterAlive && $executor->run) {
+      $events = IO::pollAndReceive(-1, [$this->socket, $this->master], $this->master);
+      foreach ($events as $item) {
+        if ($item['fd'] === $this->master) {
+          if ($item['alive'] < 1) {
+            $masterAlive = false;
+          }
+          $this->sendOutput($item['msg']);
+        } else {
+          if ($item['alive'] < 1) {
+            echo "pty socket has been closed\n";
+            exit(1);
+          } else {
+            $message = $item['msg'];
+            if ($message['type'] === Message::INPUT) {
+              IO::queueWrite($this->master, $message['input']);
+            }
+          }
+        }
+      }
+      pcntl_signal_dispatch();
+    }
     $status = $executor->getStatus();
     // DEBG:8 echo "MSGSND: pty->commander [return]\n";
     Message::send($this->socket, [
@@ -57,6 +65,7 @@ try {
       'pid' => $this->pid,
       'return' => $status
     ]);
+    IO::pollAndReceive(-1, [$this->socket]);
     exit(0);
   }
 

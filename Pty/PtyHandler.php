@@ -1,5 +1,5 @@
 <?php
-// DEBUGLEVEL:8
+
 namespace MADIR\Pty;
 
 class PtyHandler {

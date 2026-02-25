@@ -14,11 +14,11 @@ class Message {
     [$type, $return, $pid, $cid, $payload] = self::encode($data);
     $len = strlen($payload);
     $header = pack('CCNNN', $type, $return, $len, $pid, $cid);
-    Libc::queueWrite($fd, $header . $payload);
+    IO::queueWrite($fd, $header . $payload);
   }
 
   public static function receive(int $fd): ?array {
-    $hdr = Libc::peek($fd, self::HDR_LEN);
+    $hdr = IO::peek($fd, self::HDR_LEN);
     if ($hdr === '') {
       return null;
     }
@@ -32,11 +32,11 @@ class Message {
     $pid = $u['pid'];
     $cid = $u['cid'];
     $need = self::HDR_LEN + $len;
-    if (Libc::inLength($fd) < $need) {
+    if (IO::inLength($fd) < $need) {
       return null;
     }
-    Libc::consume($fd, self::HDR_LEN);
-    $payload = ($len > 0) ? Libc::take($fd, $len) : '';
+    IO::consume($fd, self::HDR_LEN);
+    $payload = ($len > 0) ? IO::take($fd, $len) : '';
     return self::decode($type, $return, $pid, $cid, $payload);
   }
 

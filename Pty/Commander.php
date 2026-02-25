@@ -1,5 +1,4 @@
 <?php
-// DEBUGLEVEL:8
 namespace MADIR\Pty;
 
 class Commander {
@@ -24,30 +23,37 @@ class Commander {
   private function waitForMessage() {
     while (true) {
       $fds = [$this->commanderSocket];
-//      foreach ($this->ptys as $pty) {
-//        $fds[] = $pty->socket;
-//      }
-      $events = Libc::pollAndReceive(-1, $fds);
+      foreach ($this->ptys as $pty) {
+        $fds[] = $pty->socket;
+      }
+      $events = IO::pollAndReceive(-1, $fds);
       foreach ($events as $item) {
         $fd  = $item['fd'];
         $message = $item['msg'];
-        if ($message === false) {
-          echo "Commander socket has been closed\n";
-          exit(1);
-        }
         if ($fd === $this->commanderSocket) {
+          if ($item['alive'] < 1) {
+            echo "Commander socket has been closed B\n";
+            exit(1);
+          }
           if (isset($message['input'])) {
             // DEBUG:8 echo "MSGRCV: commander [input]\n";
             $this->sendInput($message);
           }
           if (isset($message['command'])) {
-            // DEBUG:8 echo "MSGRCV: commander [command]\n";
+            // DEBUG:8 echo "MSGRCV: commander [command: {$message['command']}]\n";
             $this->delegateCommand($message);
           }
         } else {
-          $this->forwardResponse($message);
+          if ($item['alive'] < 1) {
+            echo "Pty socket has been closed B\n";
+exit;
+          }
+          if ($message !== null) {
+            $this->forwardResponse($message);
+          }
         }
       }
+      pcntl_signal_dispatch();
     }
   }
 

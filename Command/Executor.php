@@ -58,7 +58,6 @@ class Executor {
     }
     $this->lastpid = end($this->pids);
     pcntl_signal(SIGCHLD, [$this, 'childEnd']);
-
   }
 
   public function getStatus() {
@@ -70,6 +69,8 @@ class Executor {
 
   private function child($i, $redirects, $argv) {
     $libc = Libc::$instance->libc;
+    Libc::close($this->master);
+    Libc::close(1);
     if ($i === 0) {
       Libc::setsid();
       $libc->ioctl($this->slave, Libc::TIOCSCTTY, 0);
@@ -91,7 +92,6 @@ class Executor {
     // set strderr
     Libc::dup2($this->slave, 2);
     // close all pipe fds in child
-    Libc::close($this->master);
     Libc::close($this->slave);
     foreach ($this->pipes as $p) {
       Libc::close($p[0]);
