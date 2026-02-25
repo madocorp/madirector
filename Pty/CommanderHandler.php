@@ -1,5 +1,5 @@
 <?php
-// DEBUGLEVEL:8
+
 namespace MADIR\Pty;
 
 class CommanderHandler {
@@ -51,11 +51,11 @@ class CommanderHandler {
   }
 
   public static function loop() {
-    $events = Libc::pollAndReceive(0, [self::$commanderSocket]);
+    $events = IO::pollAndReceive(0, [self::$commanderSocket]);
     foreach ($events as $item) {
       $message = $item['msg'];
-      if ($message === false) {
-        echo "Commander socket has been closed\n";
+      if ($item['alive'] < 1) {
+        echo "Commander socket has been closed A\n";
         exit(1);
       }
       $commandId = $message['cid'];

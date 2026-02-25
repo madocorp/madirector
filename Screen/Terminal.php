@@ -187,7 +187,7 @@ class Terminal extends Element {
     self::$sdlRect->w = $surface->w;
     self::$sdlRect->h = $surface->h;
     $sdl->SDL_UpdateTexture(self::$atlas, self::$sdlRectAddr, $srcSurface->pixels, $srcSurface->pitch);
-    self::$glyphCache[$glyph] = [1 + $x * ($gw + 2), 1 + $y * ($gh + 2), $glyph];
+    self::$glyphCache[$glyph] = [1 + $x * ($gw + 2), 1 + $y * ($gh + 2)];
     $ttf->SDL_DestroySurface($surface);
     $sdl->SDL_DestroySurface($surface2);
     $sdl->SDL_DestroySurface($srcSurface);

@@ -26,24 +26,11 @@ class Libc {
   const ICRNL = 0000400;
   const OPOST = 0000001;
 
-  const POLLIN = 0x001;
-  const POLLOUT = 0x004;
-  const POLLERR = 0x008;
-  const POLLHUP = 0x010;
-  const POLLNVAL = 0x020;
-
   const TIOCSCTTY = 0x540E;
   const TIOCSWINSZ = 0x5414;
   const TIOCGWINSZ = 0x5413;
 
-  const SCRATCH = 8192;
-
   public static $instance;
-
-  private static array $in = [];
-  private static array $out = [];
-  private static array $inOff = [];
-  private static array $scratch = [];
 
   public $libc;
 
@@ -77,7 +64,11 @@ class Libc {
 
   public static function dup2($oldfd, $newfd) {
     $libc = self::$instance->libc;
-    $libc->dup2($oldfd, $newfd);
+    $res = $libc->dup2($oldfd, $newfd);
+    if ($res < 0) {
+      $e = self::errno();
+      echo "Dup2: {$e}\n";
+    }
   }
 
   public static function socketpair() {
@@ -158,222 +149,6 @@ class Libc {
       $err = self::errno();
       throw new \Exception("ioctl(TIOCSWINSZ) failed, errno={$err}");
     }
-  }
-
-  private static function scratch(int $fd): \FFI\CData {
-    return self::$scratch[$fd] ??= \FFI::new("char[" . self::SCRATCH . "]");
-  }
-
-  public static function queueWrite(int $fd, string $bytes): void {
-    if ($bytes === '') {
-      return;
-    }
-    self::$out[$fd] = (self::$out[$fd] ?? '') . $bytes;
-  }
-
-  public static function hasPendingWrite(int $fd): bool {
-    return (self::$out[$fd] ?? '') !== '';
-  }
-
-  /** Read whatever is available now into in-buffer. Call when POLLIN. */
-  public static function pumpRead(int $fd): bool {
-    $libc = self::$instance->libc;
-    $buf = self::scratch($fd);
-    while (true) {
-      $n = $libc->read($fd, $buf, self::SCRATCH);
-      if ($n > 0) {
-        $chunk = \FFI::string($buf, $n);
-        self::$in[$fd] = (self::$in[$fd] ?? '') . $chunk;
-        self::$inOff[$fd] ??= 0;
-        continue; // keep draining until EAGAIN
-      }
-      if ($n === 0) { // EOF (peer closed)
-echo "EOF on fd=$fd\n";
-        return false;
-      }
-      $e = self::errno();
-      if ($e === 11) { // EAGAIN
-        return true;
-      }
-      if ($e === 4) { // EINTR
-        continue;
-      }
-echo "read($fd) failed errno=$e\n";
-      return false;
-    }
-  }
-
-  /** Write as much as possible from out-buffer. Call when POLLOUT. */
-  public static function pumpWrite(int $fd): bool {
-    $libc = self::$instance->libc;
-    while (true) {
-      $out = self::$out[$fd] ?? '';
-      if ($out === '') {
-        return true;
-      }
-      $n = $libc->write($fd, $out, strlen($out));
-      if ($n > 0) {
-        if ($n === strlen($out)) {
-          self::$out[$fd] = '';
-          return true;
-        }
-        self::$out[$fd] = substr($out, $n);
-        // try again; maybe still writable
-        continue;
-      }
-      if ($n === 0) {
-        // treat as would-block-ish; rare for write()
-        return true;
-      }
-      $e = self::errno();
-      if ($e === 11) { // EAGAIN
-        return true;
-      }
-      if ($e === 4) { // EINTR
-        continue;
-      }
-      if ($e === 9) { // EBADF
-echo "EBADF on write($fd)\n";
-        return false;
-
-      }
-echo "write($fd) failed errno=$e\n";
-      return false;
-
-    }
-  }
-
-  /** Peek into in-buffer without copying too much */
-  public static function inLength(int $fd): int {
-    $buf = self::$in[$fd] ?? '';
-    $off = self::$inOff[$fd] ?? 0;
-    return max(0, strlen($buf) - $off);
-  }
-
-  /** Take exactly $n bytes from in-buffer, or '' if not enough */
-  public static function take(int $fd, int $n): string {
-    $buf = self::$in[$fd] ?? '';
-    $off = self::$inOff[$fd] ?? 0;
-    $avail = strlen($buf) - $off;
-    if ($avail < $n) {
-      return '';
-    }
-    $out = substr($buf, $off, $n);
-    $off += $n;
-    self::$inOff[$fd] = $off;
-    // occasional compaction to avoid unbounded growth
-    if ($off > 65536) {
-      self::$in[$fd] = substr($buf, $off);
-      self::$inOff[$fd] = 0;
-    }
-    return $out;
-  }
-
-  /** Peek $n bytes (without consuming), or '' if not enough */
-  public static function peek(int $fd, int $n): string {
-    $buf = self::$in[$fd] ?? '';
-    $off = self::$inOff[$fd] ?? 0;
-    $avail = strlen($buf) - $off;
-    if ($avail < $n) {
-      return '';
-    }
-    return substr($buf, $off, $n);
-  }
-
-  public static function consume(int $fd, int $n): void {
-    $got = self::take($fd, $n);
-  }
-
-  public static function pollAndReceive($timeout, array $fds, ?int $terminalFd = null): array {
-    $libc = self::$instance->libc;
-    $n = count($fds);
-    $pfds = $libc->new("struct pollfd[{$n}]");
-    foreach ($fds as $i => $fd) {
-      $pfds[$i]->fd = $fd;
-      $pfds[$i]->events = self::POLLIN | (self::hasPendingWrite($fd) ? self::POLLOUT : 0);
-      $pfds[$i]->revents = 0;
-    }
-    $rc = $libc->poll($pfds, $n, $timeout);
-    if ($rc < 0) {
-      $e = self::errno();
-      if ($e === 4) { // EINTR
-        return [];
-      }
-      throw new \Exception("poll failed errno=$e");
-    }
-    if ($rc === 0) { // TIMEOUT
-      return [];
-    }
-    $err = [];
-    for ($i = 0; $i < $n; $i++) {
-      $fd = $pfds[$i]->fd;
-      $re = $pfds[$i]->revents;
-      if ($re & self::POLLIN) {
-        if (!self::pumpRead($fd)) {
-          $err[$fd] = true;
-        }
-      }
-      if ($re & self::POLLOUT) {
-        if (!self::pumpWrite($fd)) {
-          $err[$fd] = true;
-        }
-      }
-      if ($re & self::POLLNVAL) {
-echo "POLLNVAL fd=$fd";
-      }
-      if ($re & self::POLLERR) {
-echo "POLLERR fd=$fd";
-      }
-      if ($re & self::POLLHUP) {
-echo "POLLHUP fd=$fd";
-        // HUP does not mean “no more data” immediately; still drain POLLIN if set.
-        // If you want, mark for shutdown once buffers empty.
-      }
-    }
-    $out = [];
-    $count = 0;
-    foreach ($fds as $i => $fd) {
-      if (isset($err[$fd])) {
-        $out[] = ['fd' => $fd, 'msg' => false];
-        continue;
-      }
-      if ($i === $terminalFd) {
-    //    self::readAvailable($fd);
-        continue;
-      }
-      while ($count < 100) {
-        $msg = Message::receive($fd);
-        if ($msg === null) { // no full frame available right now
-          break;
-        }
-        $out[] = ['fd' => $fd, 'msg' => $msg];
-        $count++;
-      }
-    }
-echo "RECEIVED {$count}\n";
-    return $out;
-  }
-
-  public static function readAvailable($fd): string {
-    $libc = self::$instance->libc;
-    $max = 8192;
-    $buf = $libc->new("char[{$max}]");
-    $n = $libc->read($fd, $buf, $max);
-    if ($n > 0) {
-      return \FFI::string($buf, $n);
-    }
-    if ($n === 0) {
-echo "PTY EOF fd={$this->master}\n";
-      return false;
-    }
-    $e = self::errno();
-    if ($e === 11) { // EAGAIN
-      return '';
-    }
-    if ($e === 4) { // EINTR
-      return '';
-    }
-echo "PTY read failed errno={$e}\n";
   }
 
 }
