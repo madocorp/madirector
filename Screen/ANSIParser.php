@@ -19,7 +19,7 @@ class ANSIParser {
   public $seqLen = 0;
   public $charset = self::ASCII;
 
-  public $colors = [0x000000, 0xbb0000, 0x00bb00, 0xbbbb00, 0x0000bb, 0xbb00bb, 0x00bbbb, 0xbbbbbb];
+  public $colors = [0x000000, 0xaa0000, 0x00aa00, 0xaaaa00, 0x0000aa, 0xaa00aa, 0x00aaaa, 0xaaaaaa];
   public $brightColors = [0x555555, 0xff5555, 0x55ff55, 0xffff55, 0x5555ff, 0xff55ff, 0x55ffff, 0xffffff];
   public $decMap = [
     '`' => '◆', 'a' => '▒', 'b' => '␉', 'c' => '␌',

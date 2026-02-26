@@ -49,13 +49,12 @@ Terminal {
   width: 100%;
   height: calculated;
   padding: 5px;
-  padding: 10px, 10px, 3px, 10px;
   textWrap: manual;
   backgroundColor: #000000;
   color: #bbbbbb;
+  font: LiberationMono-Bold;
+  fontSize: 17px;
 }
-
-
 
 .new {
   backgroundColor: #000000;
