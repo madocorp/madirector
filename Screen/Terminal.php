@@ -14,6 +14,7 @@ use \SPTK\SDLWrapper\TTF;
 class Terminal extends Element {
 
   const GLYPH_MAP_SIZE = 64;
+  const MAP_PAD = 1;
 
   private static $fgColor = false;
   private static $bgColor = false;
@@ -30,7 +31,9 @@ class Terminal extends Element {
   protected $buffer;
   protected $font;
   protected $letterWidth;
+  protected $letterHeight;
   protected $linHeight;
+  protected $lineOffset;
   protected $inputCallback;
   protected $inputGrab = false;
 
@@ -58,10 +61,12 @@ class Terminal extends Element {
     $fontName = $this->style->get('font');
     $this->font = new Font($fontName, $fontSize);
     $this->letterWidth = $this->font->letterWidth;
+    $this->letterHeight = $this->font->letterHeight;
     $this->lineHeight = $this->font->height;
+    $this->lineOffset = $this->font->height - $this->font->letterHeight;
     if (self::$atlas === false) {
-      $aw = ($this->letterWidth + 2) * self::GLYPH_MAP_SIZE;
-      $ah = ($this->lineHeight + 2) * self::GLYPH_MAP_SIZE;
+      $aw = ($this->letterWidth + self::MAP_PAD * 2) * self::GLYPH_MAP_SIZE;
+      $ah = ($this->lineHeight + self::MAP_PAD * 2) * self::GLYPH_MAP_SIZE;
       self::$atlas = $sdl->SDL_CreateTexture(
         $this->renderer,
         SDL::SDL_PIXELFORMAT_RGBA8888,
@@ -105,47 +110,67 @@ class Terminal extends Element {
     $this->texture = new Texture($this->renderer, $this->geometry->width, $this->geometry->height, [0, 0, 0, 0xff]);
     $lines = $this->buffer->getLines();
     $cursor = $this->buffer->getCursor();
-    $gw = $this->letterWidth;
-    $gh = $this->lineHeight;
+    $cw = $this->letterWidth;
+    $ch = $this->letterHeight;
+    $previousColor = false;
     foreach ($lines as $i => $row) {
       foreach ($row as $j => $cell) {
         $glyph = $cell[ScreenBuffer::GLYPH];
         if ($cursor !== false && $i == $cursor[0] && $j == $cursor[1]) {
-          $fgcolor = $cell[ScreenBuffer::BG];
-          $bgcolor = $cell[ScreenBuffer::FG];
+          $bgColor = $cell[ScreenBuffer::FG];
         } else {
-          $fgcolor = $cell[ScreenBuffer::FG];
-          $bgcolor = $cell[ScreenBuffer::BG];
+          $bgColor = $cell[ScreenBuffer::BG];
         }
-        self::$sdlFRect2->x = (float)($j * $gw + $this->geometry->paddingLeft + $this->geometry->borderLeft);
-        self::$sdlFRect2->y = (float)($i * $gh + $this->geometry->paddingTop + $this->geometry->borderTop);
-        self::$sdlFRect2->w = (float)$gw;
-        self::$sdlFRect2->h = (float)$gh;
+        self::$sdlFRect2->x = (float)($j * $cw + $this->geometry->paddingLeft + $this->geometry->borderLeft);
+        self::$sdlFRect2->y = (float)($i * $ch + $this->geometry->paddingTop + $this->geometry->borderTop);
+        self::$sdlFRect2->w = (float)$cw;
+        self::$sdlFRect2->h = (float)$ch;
         // BG
-        $r = ($bgcolor >> 16) & 0xff;
-        $g = ($bgcolor >> 8) & 0xff;
-        $b = $bgcolor & 0xff;
-        $a = 0xff;
-        $sdl->SDL_SetRenderDrawColor($this->renderer, $r, $g, $b, $a);
+        if ($bgColor !== $previousColor) {
+          $r = ($bgColor >> 16) & 0xff;
+          $g = ($bgColor >> 8) & 0xff;
+          $b = $bgColor & 0xff;
+          $a = 0xff;
+          $sdl->SDL_SetRenderDrawColor($this->renderer, $r, $g, $b, $a);
+        }
+        $previousColor = $bgColor;
         $sdl->SDL_RenderFillRect($this->renderer, self::$sdlFRect2Addr);
+      }
+    }
+    $previousColor = false;
+    foreach ($lines as $i => $row) {
+      foreach ($row as $j => $cell) {
+        $glyph = $cell[ScreenBuffer::GLYPH];
+        if ($cursor !== false && $i == $cursor[0] && $j == $cursor[1]) {
+          $fgColor = $cell[ScreenBuffer::BG];
+        } else {
+          $fgColor = $cell[ScreenBuffer::FG];
+        }
         // FG
         if ($glyph === ' ') {
           continue;
         }
-        $r = ($fgcolor >> 16) & 0xff;
-        $g = ($fgcolor >> 8) & 0xff;
-        $b = $fgcolor & 0xff;
-        $a = 0xff;
-        $sdl->SDL_SetTextureColorMod(self::$atlas, $r, $g, $b);
-        $sdl->SDL_SetTextureAlphaMod(self::$atlas, $a);
+        if ($fgColor !== $previousColor) {
+          $r = ($fgColor >> 16) & 0xff;
+          $g = ($fgColor >> 8) & 0xff;
+          $b = $fgColor & 0xff;
+          $a = 0xff;
+          $sdl->SDL_SetTextureColorMod(self::$atlas, $r, $g, $b);
+          $sdl->SDL_SetTextureAlphaMod(self::$atlas, $a);
+        }
+        $previousColor = $fgColor;
         if (!isset(self::$glyphCache[$glyph])) {
           $this->renderGlyph($glyph);
         }
         $glyphMap = self::$glyphCache[$glyph];
-        self::$sdlFRect1->x = (float)$glyphMap[0];
-        self::$sdlFRect1->y = (float)$glyphMap[1];
-        self::$sdlFRect1->w = (float)$gw;
-        self::$sdlFRect1->h = (float)$gh;
+        self::$sdlFRect1->x = (float)$glyphMap[0] - self::MAP_PAD;
+        self::$sdlFRect1->y = (float)$glyphMap[1] - self::MAP_PAD + $this->lineOffset;
+        self::$sdlFRect1->w = (float)$cw + self::MAP_PAD * 2;
+        self::$sdlFRect1->h = (float)$ch + self::MAP_PAD * 2;
+        self::$sdlFRect2->x = (float)($j * $cw + $this->geometry->paddingLeft + $this->geometry->borderLeft) - self::MAP_PAD;
+        self::$sdlFRect2->y = (float)($i * $ch + $this->geometry->paddingTop + $this->geometry->borderTop) - self::MAP_PAD;
+        self::$sdlFRect2->w = (float)$cw + self::MAP_PAD * 2;
+        self::$sdlFRect2->h = (float)$ch + self::MAP_PAD * 2;
         $sdl->SDL_RenderTexture($this->renderer, self::$atlas, self::$sdlFRect1Addr, self::$sdlFRect2Addr);
       }
     }
@@ -153,18 +178,19 @@ class Terminal extends Element {
 
   protected function renderGlyph($glyph) {
     $ttf = TTF::$instance->ttf;
+    $ttf->TTF_SetFontHinting($this->font->font, TTF::TTF_HINTING_LIGHT_SUBPIXEL);
     $sdl = SDL::$instance->sdl;
     self::$fgColor->r = 0xff;
     self::$fgColor->g = 0xff;
     self::$fgColor->b = 0xff;
     self::$fgColor->a = 0xff;
-    $surface = $ttf->TTF_RenderText_Blended($this->font->font, $glyph, strlen($glyph), self::$fgColor);
+    $surface = $ttf->TTF_RenderGlyph_Blended($this->font->font, mb_ord($glyph), self::$fgColor);
     $surface2 = \FFI::cast($sdl->type("SDL_Surface*"), $surface);
     $srcSurface = $sdl->SDL_ConvertSurface($surface2, SDL::SDL_PIXELFORMAT_RGBA8888);
     $index = self::$nextGlyph;
     self::$nextGlyph++;
-    $gw = $this->letterWidth;
-    $gh = $this->lineHeight;
+    $aw = $this->letterWidth;
+    $ah = $this->lineHeight;
     $y = (int)($index / self::GLYPH_MAP_SIZE);
     $x = $index % self::GLYPH_MAP_SIZE;
     $ox = 0;
@@ -182,12 +208,15 @@ class Terminal extends Element {
         }
       }
     }
-    self::$sdlRect->x = 1 + $x * ($gw + 2) - $ox;
-    self::$sdlRect->y = 1 + $y * ($gh + 2) - $oy;
+    self::$sdlRect->x = self::MAP_PAD + $x * ($aw + self::MAP_PAD * 2) - $ox;
+    self::$sdlRect->y = self::MAP_PAD + $y * ($ah + self::MAP_PAD * 2) - $oy;
     self::$sdlRect->w = $surface->w;
     self::$sdlRect->h = $surface->h;
     $sdl->SDL_UpdateTexture(self::$atlas, self::$sdlRectAddr, $srcSurface->pixels, $srcSurface->pitch);
-    self::$glyphCache[$glyph] = [1 + $x * ($gw + 2), 1 + $y * ($gh + 2)];
+    self::$glyphCache[$glyph] = [
+      self::MAP_PAD + $x * ($aw + self::MAP_PAD * 2),
+      self::MAP_PAD + $y * ($ah + self::MAP_PAD * 2)
+    ];
     $ttf->SDL_DestroySurface($surface);
     $sdl->SDL_DestroySurface($surface2);
     $sdl->SDL_DestroySurface($srcSurface);
