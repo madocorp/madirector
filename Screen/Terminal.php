@@ -36,6 +36,7 @@ class Terminal extends Element {
   protected $lineOffset;
   protected $inputCallback;
   protected $inputGrab = false;
+  protected $scrollMode = false;
 
   public function init() {
     $this->acceptInput = true;
@@ -97,6 +98,15 @@ class Terminal extends Element {
     $this->inputGrab = false;
   }
 
+  public function scrollOn() {
+    $this->scrollMode = true;
+  }
+
+  public function scrollOff() {
+    $this->scrollMode = false;
+  }
+
+
   protected function calculateHeights() {
     $rows = $this->buffer->countLines();
     $h = $rows * $this->lineHeight;
@@ -125,7 +135,6 @@ class Terminal extends Element {
         self::$sdlFRect2->y = (float)($i * $ch + $this->geometry->paddingTop + $this->geometry->borderTop);
         self::$sdlFRect2->w = (float)$cw;
         self::$sdlFRect2->h = (float)$ch;
-        // BG
         if ($bgColor !== $previousColor) {
           $r = ($bgColor >> 16) & 0xff;
           $g = ($bgColor >> 8) & 0xff;
@@ -146,7 +155,6 @@ class Terminal extends Element {
         } else {
           $fgColor = $cell[ScreenBuffer::FG];
         }
-        // FG
         if ($glyph === ' ') {
           continue;
         }
@@ -259,33 +267,37 @@ class Terminal extends Element {
         call_user_func($this->inputCallback, $stream);
       }
       return true;
+    } else if ($this->scrollMode) {
+      switch ($keycombo) {
+        case Action::DO_IT:
+          return false;
+        /* SPACE */
+        case Action::SELECT_ITEM:
+          return true;
+        /* MOVE and SELECT*/
+        /* COPY */
+        case Action::COPY:
+          Clipboard::set($this->cursor->getSelection());
+          $this->cursor->resetSelection();
+          break;
+        case Action::PASTE:
+          $paste = Clipboard::get();
+          if ($paste !== false) {
+            call_user_func($this->inputCallback, $paster);
+          }
+          break;
+        default:
+          return true;
+      }
     }
-    switch ($keycombo) {
-      /* SPACE */
-      case Action::SELECT_ITEM:
-        return true;
-      /* MOVE and SELECT*/
-      /* COPY */
-      case Action::COPY:
-        Clipboard::set($this->cursor->getSelection());
-        $this->cursor->resetSelection();
-        break;
-      case Action::PASTE:
-        $paste = Clipboard::get();
-        if ($paste !== false) {
-          call_user_func($this->inputCallback, $paster);
-        }
-        break;
-      default:
-        return false;
-    }
-    return true;
+    return false;
   }
 
   public function textInputHandler($element, $event) {
     if (!$this->inputGrab) {
       return false;
     }
+    // DEBUG:8 echo "INPUT: {$event['text']}\n";
     call_user_func($this->inputCallback, $event['text']);
     return true;
   }

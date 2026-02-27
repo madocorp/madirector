@@ -10,8 +10,10 @@ class Command {
   public $done = false;
   public $returnValue = false;
   public $grab = true;
+  public $scroll = false;
   public $screenBuffer;
   public $cid;
+  private $height = false;
 
   public function __construct($command, $session) {
     $this->command = $command;
@@ -19,16 +21,18 @@ class Command {
     if ($command !== false) {
       $this->screenBuffer = new \MADIR\Screen\ScreenBuffer;
       $this->cid = \MADIR\Pty\CommanderHandler::runCommand($this);
+      $this->height = $this->screenBuffer->countLines();
     }
   }
 
   public function output($stream) {
     $this->screenBuffer->parse($stream);
-
-// TODO: detect size changes!
-//\MADIR\Screen\Controller::listCommands();
-\SPTK\Element::refresh();
-
+    // if current session, on screen, etc ...
+    $newHeight = $this->screenBuffer->countLines();
+    if ($newHeight !== $this->height) {
+      \MADIR\Screen\Controller::listCommands();
+    }
+    \SPTK\Element::refresh(); // refresh only terminal...
   }
 
   public function input($stream) {
@@ -38,6 +42,8 @@ class Command {
   public function end() {
     $this->returnValue = 0;
     $this->grab = false;
+    $this->scroll = false;
+    $this->done = microtime(true);
     $this->session->endCommand();
     \MADIR\Screen\Controller::listCommands();
     \SPTK\Element::refresh();
@@ -45,6 +51,18 @@ class Command {
 
   public function isNew() {
     return $this->command === false;
+  }
+
+  public function isRunning() {
+    return $this->done === false;
+  }
+
+  public function toggleGrab() {
+    $this->grab = !$this->grab;
+  }
+
+  public function toggleScroll() {
+    $this->scroll = !$this->scroll;
   }
 
 }

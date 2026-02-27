@@ -15,10 +15,22 @@ CommandBlock {
   margin: 0, 10px;
 }
 
-.active {
+CommandBlock:active {
   borderColor: #ffffff;
   backgroundColor: #ffffff;
   color: #000000;
+}
+
+CommandBlock:scroll {
+  borderColor: #ffff00;
+  backgroundColor: #ffff00;
+  color: #000000;
+}
+
+CommandBlock:grab {
+  borderColor: #0000ff;
+  backgroundColor: #0000ff;
+  color: #ffffff;
 }
 
 CommandInfo {

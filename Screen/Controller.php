@@ -19,12 +19,23 @@ class Controller {
         exit(0);
       case \SPTK\SDLWrapper\KeyCode::F12:
         $session = \MADIR\Command\Session::getCurrent();
-        $session->toggleGrab();
+        $command = $session->currentCommand();
+        if (!$command->isNew()) {
+          $command->toggleGrab();
+        }
         self::listCommands();
         \SPTK\Element::refresh();
         return true;
       case \SPTK\SDLWrapper\Action::DO_IT:
-        self::runCommand();
+        $session = \MADIR\Command\Session::getCurrent();
+        $command = $session->currentCommand();
+        if ($command->isNew()) {
+          self::runCommand();
+        } else {
+          $command->toggleScroll();
+        }
+        self::listCommands();
+        \SPTK\Element::refresh();
         return true;
       case \SPTK\SDLWrapper\Action::PAGE_UP:
         $session = \MADIR\Command\Session::getCurrent();
@@ -43,9 +54,8 @@ class Controller {
 
   public static function newCommand($y) {
     $window = \SPTK\Element::firstByType('Window');
-    $block = new \SPTK\Element($window, 'newCommand', 'active', 'CommandBlock');
-    $style = $block->getStyle();
-    $style->set('y', "-{$y}px");
+    $block = new \SPTK\Element($window, 'newCommand', false, 'CommandBlock');
+    $block->addClass('active', true);
     $info = new \SPTK\Element($block, false, false, 'CommandInfo');
     $info->setText(getcwd());
     $cmd = new \SPTK\Element($block, false, 'new', 'Command');
@@ -56,6 +66,8 @@ class Controller {
     if (self::$inputElement === false) {
       self::$inputElement = $input;
     }
+    $style = $block->getStyle();
+    $style->set('y', "-{$y}px");
     $block->recalculateGeometry();
     $geometry = $block->getGeometry();
     return $y + $geometry->height + self::$commandGap;
@@ -63,9 +75,10 @@ class Controller {
 
   public static function addCommand($command, $y, $active) {
     $window = \SPTK\Element::firstByType('Window');
-    $block = new \SPTK\Element($window, false, $active ? 'active' : false, 'CommandBlock');
-    $style = $block->getStyle();
-    $style->set('y', "-{$y}px");
+    $block = new \SPTK\Element($window, false, false, 'CommandBlock');
+    if ($active) {
+      $block->addClass('active', true);
+    }
     $info = new \SPTK\Element($block, false, false, 'CommandInfo');
     $info->setText(getcwd());
     $cmd = new \SPTK\Element($block, false, $command->returnValue === false ? 'run' : 'done', 'Command');
@@ -75,9 +88,13 @@ class Controller {
     $terminal->setInputCallback([$command, 'input']);
     if ($command->grab) {
       $terminal->grabInput();
-    } else {
-      $terminal->releaseInput();
+      $block->addClass('grab', true);
+    } else if ($command->scroll) {
+      $terminal->scrollOn();
+      $block->addClass('scroll', true);
     }
+    $style = $block->getStyle();
+    $style->set('y', "-{$y}px");
     if (self::$inputElement === false) {
       self::$inputElement = $terminal;
     }
@@ -90,15 +107,11 @@ class Controller {
     if (self::$inputElement === false) {
       return;
     }
-    if (self::$inputElement->getType() === 'Input') {
-      $command = self::$inputElement->getValue();
-      $session = \MADIR\Command\Session::getCurrent();
-      $session->runCommand($command);
-      self::listCommands();
-      \SPTK\Element::refresh();
-    } else {
-      // focus
-    }
+    $command = self::$inputElement->getValue();
+    $session = \MADIR\Command\Session::getCurrent();
+    $session->runCommand($command);
+    self::listCommands();
+    \SPTK\Element::refresh();
   }
 
   public static function listCommands() {
