@@ -7,7 +7,7 @@ use \MADIR\Pty\Message;
 
 class Executor {
 
-  public $returnValue = 0;
+  private $returnValue = false;
   public $run = true;
   private $master;
   private $slave;
@@ -24,7 +24,6 @@ class Executor {
   }
 
   private function runSequence($sequence) {
-    $lastStatus = 0;
     foreach ($sequence as $item) {
       if ($item['op'] === '&&' && $lastStatus !== 0) {
         continue;
@@ -34,7 +33,6 @@ class Executor {
       }
       $lastStatus = $this->runPipeline($item['pipeline']);
     }
-    $this->returnValue = $lastStatus;
   }
 
   private function runPipeline($commands) {
@@ -61,10 +59,12 @@ class Executor {
   }
 
   public function getStatus() {
-    foreach ($this->pids as $pid) {
-      $res = pcntl_waitpid($pid, $status, WNOHANG);
+    while (($pid = pcntl_waitpid(-1, $status)) > 0) {
+      if ($pid === $this->lastpid) {
+        $this->returnValue = pcntl_wexitstatus($status);
+      }
     }
-    return pcntl_wexitstatus($status);
+    return $this->returnValue;
   }
 
   private function child($i, $redirects, $argv) {
@@ -126,6 +126,7 @@ class Executor {
   public function childEnd() {
     while (($pid = pcntl_waitpid(-1, $status, WNOHANG)) > 0) {
       if ($pid === $this->lastpid) {
+        $this->returnValue = pcntl_wexitstatus($status);
         $this->run = false;
       }
     }
