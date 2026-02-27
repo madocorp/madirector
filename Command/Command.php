@@ -22,6 +22,7 @@ class Command {
       $this->screenBuffer = new \MADIR\Screen\ScreenBuffer;
       $this->cid = \MADIR\Pty\CommanderHandler::runCommand($this);
       $this->height = $this->screenBuffer->countLines();
+      $this->started = microtime(true);
     }
   }
 
@@ -39,8 +40,8 @@ class Command {
     \MADIR\Pty\CommanderHandler::sendInput($this->cid, $stream);
   }
 
-  public function end() {
-    $this->returnValue = 0;
+  public function end($returnValue) {
+    $this->returnValue = $returnValue;
     $this->grab = false;
     $this->scroll = false;
     $this->done = microtime(true);
@@ -63,6 +64,24 @@ class Command {
 
   public function toggleScroll() {
     $this->scroll = !$this->scroll;
+  }
+
+  public function getStatusString() {
+    $status = '';
+    $status .= "[{$this->cid}] ";
+    $dt = new \DateTime;
+    $dt->setTimestamp($this->started);
+    $status .= $dt->format('Y-m-d H:i:s') . ' ';
+    if ($this->done !== false) {
+      $status .= sprintf("(%.3fs) ", $this->done - $this->started);
+    }
+    $status .= ">>> ";
+    if ($this->done !== false) {
+      $status .= sprintf("%d.", $this->returnValue);
+    } else {
+      $status .= '...';
+    }
+    return $status;
   }
 
 }

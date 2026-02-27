@@ -37,6 +37,11 @@ CommandInfo {
   width: 100%;
 }
 
+CommandStatus {
+  position: absolute;
+  x: -0px;
+}
+
 Command {
   width: 100%;
   backgroundColor: #bbbbbb;

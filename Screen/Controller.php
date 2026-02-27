@@ -81,6 +81,8 @@ class Controller {
     }
     $info = new \SPTK\Element($block, false, false, 'CommandInfo');
     $info->setText(getcwd());
+    $status = new \SPTK\Element($info, false, false, 'CommandStatus');
+    $status->setText($command->getStatusString());
     $cmd = new \SPTK\Element($block, false, $command->returnValue === false ? 'run' : 'done', 'Command');
     $cmd->setText('$ ' . $command->command);
     $terminal = new Terminal($block);
