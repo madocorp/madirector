@@ -38,21 +38,13 @@ class Session {
     $this->selected = min(count($this->commands) - 1, $this->selected + 1);
   }
 
+  public function currentCommand() {
+    return $this->commands[$this->selected];
+  }
+
   public function endCommand() {
     if ($this->selected === count($this->commands) - 2) {
       $this->nextCommand();
-    }
-  }
-
-  public function toggleGrab() {
-    $command = $this->commands[$this->selected];
-    if ($command->isNew()) {
-      return;
-    }
-    if ($command->grab) {
-      $command->grab = false;
-    } else {
-      $command->grab = true;
     }
   }
 

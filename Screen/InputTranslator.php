@@ -41,6 +41,7 @@ class InputTranslator {
       // navigation
       case KeyCode::HOME:     return "\e[H";
       case KeyCode::END:      return "\e[F";
+      case KeyCode::INSERT:   return "\e[2~";
       case KeyCode::DELETE:   return "\e[3~";
       case KeyCode::PAGEUP:   return "\e[5~";
       case KeyCode::PAGEDOWN: return "\e[6~";
