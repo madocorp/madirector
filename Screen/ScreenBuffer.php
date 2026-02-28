@@ -473,4 +473,13 @@ class ScreenBuffer {
     $this->cols = $col;
   }
 
+
+  public function getRows() {
+    return $this->rows;
+  }
+
+  public function getCols() {
+    return $this->cols;
+  }
+
 }

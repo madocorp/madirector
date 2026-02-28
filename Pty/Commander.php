@@ -32,7 +32,7 @@ class Commander {
         $message = $item['msg'];
         if ($fd === $this->commanderSocket) {
           if ($item['alive'] < 1) {
-            echo "Commander socket has been closed B\n";
+            echo "Commander socket has been closed\n";
             exit(1);
           }
           if (isset($message['input'])) {
@@ -45,8 +45,8 @@ class Commander {
           }
         } else {
           if ($item['alive'] < 1) {
-            echo "Pty socket has been closed B\n";
-exit;
+            echo "Pty socket has been closed\n";
+            // exit(1); // ?
           }
           if ($message !== null) {
             $this->forwardResponse($message);

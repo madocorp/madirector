@@ -37,6 +37,7 @@ class Terminal extends Element {
   protected $inputCallback;
   protected $inputGrab = false;
   protected $scrollMode = false;
+  protected $cursor;
 
   public function init() {
     $this->acceptInput = true;
@@ -60,6 +61,7 @@ class Terminal extends Element {
     }
     $fontSize = $this->style->get('fontSize');
     $fontName = $this->style->get('font');
+    $this->cursor = new Cursor();
     $this->font = new Font($fontName, $fontSize);
     $this->letterWidth = $this->font->letterWidth;
     $this->letterHeight = $this->font->letterHeight;
@@ -84,6 +86,8 @@ class Terminal extends Element {
 
   public function setBuffer($buffer) {
     $this->buffer = $buffer;
+    $this->cursor->setLines($this->buffer->countLines());
+    $this->cursor->setCols($this->buffer->getCols() - 1);
   }
 
   public function setInputCallback($callback) {
@@ -123,13 +127,27 @@ class Terminal extends Element {
     $cw = $this->letterWidth;
     $ch = $this->letterHeight;
     $previousColor = false;
+    $row1 = $col1 = $row2 = $col2 = 0;
+    if ($this->scrollMode) {
+      $this->cursor->toCoordinates($row1, $col1, $row2, $col2);
+    }
     foreach ($lines as $i => $row) {
       foreach ($row as $j => $cell) {
         $glyph = $cell[ScreenBuffer::GLYPH];
-        if ($cursor !== false && $i == $cursor[0] && $j == $cursor[1]) {
-          $bgColor = $cell[ScreenBuffer::FG];
-        } else {
-          $bgColor = $cell[ScreenBuffer::BG];
+        $bgColor = false;
+        if ($this->scrollMode) {
+          $beforeStart = ($i < $row1) || ($i == $row1 && $j < $col1);
+          $afterEnd    = ($i > $row2) || ($i == $row2 && $j >= $col2);
+          if (!$beforeStart && !$afterEnd) {
+            $bgColor = 0xffff00;
+          }
+        }
+        if ($bgColor === false) {
+          if ($cursor !== false && $i == $cursor[0] && $j == $cursor[1]) {
+            $bgColor = $cell[ScreenBuffer::FG];
+          } else {
+            $bgColor = $cell[ScreenBuffer::BG];
+          }
         }
         self::$sdlFRect2->x = (float)($j * $cw + $this->geometry->paddingLeft + $this->geometry->borderLeft);
         self::$sdlFRect2->y = (float)($i * $ch + $this->geometry->paddingTop + $this->geometry->borderTop);
@@ -150,10 +168,20 @@ class Terminal extends Element {
     foreach ($lines as $i => $row) {
       foreach ($row as $j => $cell) {
         $glyph = $cell[ScreenBuffer::GLYPH];
-        if ($cursor !== false && $i == $cursor[0] && $j == $cursor[1]) {
-          $fgColor = $cell[ScreenBuffer::BG];
-        } else {
-          $fgColor = $cell[ScreenBuffer::FG];
+        $fgColor = false;
+        if ($this->scrollMode) {
+          $beforeStart = ($i < $row1) || ($i == $row1 && $j < $col1);
+          $afterEnd    = ($i > $row2) || ($i == $row2 && $j >= $col2);
+          if (!$beforeStart && !$afterEnd) {
+            $fgColor = 0x000000;
+          }
+        }
+        if ($fgColor === false) {
+          if ($cursor !== false && $i == $cursor[0] && $j == $cursor[1]) {
+            $fgColor = $cell[ScreenBuffer::BG];
+          } else {
+            $fgColor = $cell[ScreenBuffer::FG];
+          }
         }
         if ($glyph === ' ') {
           continue;
@@ -268,6 +296,12 @@ class Terminal extends Element {
       }
       return true;
     } else if ($this->scrollMode) {
+      $handled = $this->cursor->handleKeys($keycombo, $this->buffer->getRows(), $this->buffer->getCols());
+      $this->cursor->save();
+      if ($handled) {
+        Element::refresh();
+        return true;
+      }
       switch ($keycombo) {
         case Action::DO_IT:
           return false;
