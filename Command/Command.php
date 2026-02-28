@@ -45,6 +45,7 @@ class Command {
     $this->grab = false;
     $this->scroll = false;
     $this->done = microtime(true);
+    $this->screenBuffer->cursor(false);
     $this->session->endCommand();
     \MADIR\Screen\Controller::listCommands();
     \SPTK\Element::refresh();
@@ -77,7 +78,7 @@ class Command {
     }
     $status .= ">>> ";
     if ($this->done !== false) {
-      $status .= sprintf("%d.", $this->returnValue);
+      $status .= sprintf("%d%s", $this->returnValue, $this->returnValue === 0 ? '.' : '!');
     } else {
       $status .= '...';
     }
