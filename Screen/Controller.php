@@ -4,13 +4,12 @@ namespace MADIR\Screen;
 
 class Controller {
 
-  private static $inputElement = false;
   private static $commandGap = 10;
 
   public static function init() {
     cli_set_process_title('MADIR');
     new \MADIR\Command\Session();
-    self::newCommand(self::$commandGap);
+    self::ListCommands();
   }
 
   public static function keyPressHandler($element, $event) {
@@ -30,7 +29,7 @@ class Controller {
         $session = \MADIR\Command\Session::getCurrent();
         $command = $session->currentCommand();
         if ($command->isNew()) {
-          self::runCommand();
+          self::runCommand($command);
         } else {
           $command->toggleScroll();
         }
@@ -52,66 +51,12 @@ class Controller {
     }
   }
 
-  public static function newCommand($y) {
-    $window = \SPTK\Element::firstByType('Window');
-    $block = new \SPTK\Element($window, 'newCommand', false, 'CommandBlock');
-    $block->addClass('active', true);
-    $info = new \SPTK\Element($block, false, false, 'CommandInfo');
-    $info->setText(getcwd());
-    $cmd = new \SPTK\Element($block, false, 'new', 'Command');
-    $label = new \SPTK\Element($cmd, false, 'prompt', 'Label');
-    $label->setText('$');
-    $input = new \SPTK\Elements\Input($label, false, 'cmd');
-    $input->addClass('active', true);
-    if (self::$inputElement === false) {
-      self::$inputElement = $input;
-    }
-    $style = $block->getStyle();
-    $style->set('y', "-{$y}px");
-    $block->recalculateGeometry();
-    $geometry = $block->getGeometry();
-    return $y + $geometry->height + self::$commandGap;
-  }
-
-  public static function addCommand($command, $y, $active) {
-    $window = \SPTK\Element::firstByType('Window');
-    $block = new \SPTK\Element($window, false, false, 'CommandBlock');
-    if ($active) {
-      $block->addClass('active', true);
-    }
-    $info = new \SPTK\Element($block, false, false, 'CommandInfo');
-    $info->setText(getcwd());
-    $status = new \SPTK\Element($info, false, false, 'CommandStatus');
-    $status->setText($command->getStatusString());
-    $cmd = new \SPTK\Element($block, false, $command->returnValue === false ? 'run' : 'done', 'Command');
-    $cmd->setText('$ ' . $command->command);
-    $terminal = new Terminal($block);
-    $terminal->setBuffer($command->screenBuffer);
-    $terminal->setInputCallback([$command, 'input']);
-    if ($command->grab) {
-      $terminal->grabInput();
-      $block->addClass('grab', true);
-    } else if ($command->scroll) {
-      $terminal->scrollOn();
-      $block->addClass('scroll', true);
-    }
-    $style = $block->getStyle();
-    $style->set('y', "-{$y}px");
-    if (self::$inputElement === false) {
-      self::$inputElement = $terminal;
-    }
-    $block->recalculateGeometry();
-    $geometry = $block->getGeometry();
-    return $y + $geometry->height + self::$commandGap;
-  }
-
-  public static function runCommand() {
-    if (self::$inputElement === false) {
-      return;
-    }
-    $command = self::$inputElement->getValue();
+  public static function runCommand($command) {
+    $inputElement = $command->getInputElement();
+    $commandString = $inputElement->getValue();
+    $inputElement->setValue('');
     $session = \MADIR\Command\Session::getCurrent();
-    $session->runCommand($command);
+    $session->runCommand($commandString);
     self::listCommands();
     \SPTK\Element::refresh();
   }
@@ -122,21 +67,21 @@ class Controller {
     $geometry = $window->getGeometry();
     $session = \MADIR\Command\Session::getCurrent();
     $commands = $session->getVisibleCommands();
-    self::$inputElement = false;
     $y = self::$commandGap;
     foreach ($commands as $i => $command) {
-      if ($command->isNew()) {
-        $y = self::newCommand($y);
+      if ($i === 0) {
+        $command->activate();
       } else {
-        $y = self::addCommand($command, $y, $i === 0);
+        $command->inactivate();
       }
+      $window->addDescendant($command->box);
+      $command->setPos($y);
+      $y += $command->getHeight() + self::$commandGap;
       if ($y > $geometry->height) {
         break;
       }
     }
-    if (self::$inputElement !== false) {
-      self::$inputElement->raise();
-    }
+    $commands[0]->getInputElement()->raise();
   }
 
 }

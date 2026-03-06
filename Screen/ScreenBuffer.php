@@ -408,17 +408,37 @@ class ScreenBuffer {
     return $this->applicationKeypad;
   }
 
-  public function getLines() {
+  public function getLines($offset = false) {
     if ($this->currentScreen === $this->mainScreen) {
-      return $this->currentScreen; // scroll
+      $l = count($this->scrollBuffer);
+      if ($offset === false) {
+        $offset = $l;
+      }
+      $lines = [];
+      if ($offset < $l) {
+        $lines = array_slice($this->scrollBuffer, $offset, $this->rows);
+      }
+      $n = count($lines);
+      $lines2 = [];
+      if ($n < $this->rows) {
+        $lines2 = array_slice($this->currentScreen, 0, $this->rows - $n);
+      }
+      return array_merge($lines, $lines2);
     } else {
       return $this->currentScreen;
     }
   }
 
-  public function countLines() {
+  public function countVisibleLines() {
     if ($this->currentScreen === $this->mainScreen) {
       return min($this->rows, $this->mainHeight + 1);
+    }
+    return $this->rows;
+  }
+
+  public function countLines() {
+    if ($this->currentScreen === $this->mainScreen) {
+      return $this->mainHeight + 1 + count($this->scrollBuffer);
     }
     return $this->rows;
   }

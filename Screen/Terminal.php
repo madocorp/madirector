@@ -32,11 +32,12 @@ class Terminal extends Element {
   protected $font;
   protected $letterWidth;
   protected $letterHeight;
-  protected $linHeight;
+  protected $lineHeight;
   protected $lineOffset;
   protected $inputCallback;
   protected $inputGrab = false;
   protected $scrollMode = false;
+  protected $scrollOffset = 0;
   protected $cursor;
 
   public function init() {
@@ -86,8 +87,6 @@ class Terminal extends Element {
 
   public function setBuffer($buffer) {
     $this->buffer = $buffer;
-    $this->cursor->setLines($this->buffer->countLines());
-    $this->cursor->setCols($this->buffer->getCols() - 1);
   }
 
   public function setInputCallback($callback) {
@@ -104,6 +103,8 @@ class Terminal extends Element {
 
   public function scrollOn() {
     $this->scrollMode = true;
+    $this->cursor->setLines($this->buffer->countLines());
+    $this->cursor->setCols($this->buffer->getCols() - 1);
   }
 
   public function scrollOff() {
@@ -112,8 +113,8 @@ class Terminal extends Element {
 
 
   protected function calculateHeights() {
-    $rows = $this->buffer->countLines();
-    $h = $rows * $this->lineHeight;
+    $rows = $this->buffer->countVisibleLines();
+    $h = $rows * $this->letterHeight;
     $this->geometry->height = $this->geometry->borderTop + $this->geometry->paddingTop + $h + $this->geometry->paddingBottom + $this->geometry->borderBottom;
     $this->geometry->setDerivedHeights();
     $this->geometry->setContentHeight($this->lineHeight, $this->geometry->borderTop + $this->geometry->paddingTop + $h);
@@ -122,7 +123,7 @@ class Terminal extends Element {
   protected function draw() {
     $sdl = SDL::$instance->sdl;
     $this->texture = new Texture($this->renderer, $this->geometry->width, $this->geometry->height, [0, 0, 0, 0xff]);
-    $lines = $this->buffer->getLines();
+    $lines = $this->buffer->getLines($this->scrollOffset);
     $cursor = $this->buffer->getCursor();
     $cw = $this->letterWidth;
     $ch = $this->letterHeight;
@@ -136,8 +137,8 @@ class Terminal extends Element {
         $glyph = $cell[ScreenBuffer::GLYPH];
         $bgColor = false;
         if ($this->scrollMode) {
-          $beforeStart = ($i < $row1) || ($i == $row1 && $j < $col1);
-          $afterEnd    = ($i > $row2) || ($i == $row2 && $j >= $col2);
+          $beforeStart = ($i + $this->scrollOffset < $row1) || ($i + $this->scrollOffset == $row1 && $j < $col1);
+          $afterEnd    = ($i + $this->scrollOffset > $row2) || ($i + $this->scrollOffset == $row2 && $j >= $col2);
           if (!$beforeStart && !$afterEnd) {
             $bgColor = 0xffff00;
           }
@@ -170,8 +171,8 @@ class Terminal extends Element {
         $glyph = $cell[ScreenBuffer::GLYPH];
         $fgColor = false;
         if ($this->scrollMode) {
-          $beforeStart = ($i < $row1) || ($i == $row1 && $j < $col1);
-          $afterEnd    = ($i > $row2) || ($i == $row2 && $j >= $col2);
+          $beforeStart = ($i + $this->scrollOffset < $row1) || ($i + $this->scrollOffset == $row1 && $j < $col1);
+          $afterEnd    = ($i + $this->scrollOffset > $row2) || ($i + $this->scrollOffset == $row2 && $j >= $col2);
           if (!$beforeStart && !$afterEnd) {
             $fgColor = 0x000000;
           }
@@ -267,8 +268,8 @@ class Terminal extends Element {
       return false;
     }
     new \SPTK\Border($this->texture, $this->geometry, $this->ancestor->geometry, $this->style);
-    if ($this->style->get('scrollable')) {
-      new Scrollbar($this->texture, $this->scrollX, $this->scrollY, $this->geometry->contentWidth, $this->geometry->contentHeight, $this->geometry, $this->style);
+    if ($this->scrollMode) {
+      new \SPTK\Scrollbar($this->texture, 0, $this->scrollOffset * $this->letterHeight, $this->geometry->contentWidth, $this->buffer->countLines() * $this->letterHeight, $this->geometry, $this->style);
     }
     return $this->texture;
   }
@@ -299,6 +300,14 @@ class Terminal extends Element {
       $handled = $this->cursor->handleKeys($keycombo, $this->buffer->getRows(), $this->buffer->getCols());
       $this->cursor->save();
       if ($handled) {
+        $c = $this->cursor->get();
+        $rows = $this->buffer->countVisibleLines() - 1;
+        if ($c[0] < $this->scrollOffset) {
+          $this->scrollOffset = $c[0];
+        }
+        if ($c[0] > $this->scrollOffset + $rows) {
+          $this->scrollOffset = $c[0] - $rows;
+        }
         Element::refresh();
         return true;
       }

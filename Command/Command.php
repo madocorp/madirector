@@ -13,23 +13,27 @@ class Command {
   public $scroll = false;
   public $screenBuffer;
   public $cid;
+  public $box;
   private $height = false;
 
   public function __construct($command, $session) {
     $this->command = $command;
     $this->session = $session;
-    if ($command !== false) {
+    if ($command === false) {
+      $this->createCommandLine();
+    } else {
+      $this->started = microtime(true);
       $this->screenBuffer = new \MADIR\Screen\ScreenBuffer;
       $this->cid = \MADIR\Pty\CommanderHandler::runCommand($this);
-      $this->height = $this->screenBuffer->countLines();
-      $this->started = microtime(true);
+      $this->createCommandBox();
+      $this->height = $this->screenBuffer->countVisibleLines();
     }
   }
 
   public function output($stream) {
     $this->screenBuffer->parse($stream);
     // if current session, on screen, etc ...
-    $newHeight = $this->screenBuffer->countLines();
+    $newHeight = $this->screenBuffer->countVisibleLines();
     if ($newHeight !== $this->height) {
       \MADIR\Screen\Controller::listCommands();
     }
@@ -44,7 +48,14 @@ class Command {
     $this->returnValue = $returnValue;
     $this->grab = false;
     $this->scroll = false;
+    $this->box->removeClass('grab', true);
+    $terminal = $this->box->firstByType('Terminal');
+    $terminal->releaseInput();
+    $cmd = $this->box->firstByType('Command');
+    $cmd->removeClass('run');
     $this->done = microtime(true);
+    $info = $this->box->firstByType('CommandStatus');
+    $info->setText($this->getStatusString());
     $this->screenBuffer->cursor(false);
     $this->session->endCommand();
     \MADIR\Screen\Controller::listCommands();
@@ -61,10 +72,26 @@ class Command {
 
   public function toggleGrab() {
     $this->grab = !$this->grab;
+    $terminal = $this->box->firstByType('Terminal');
+    if ($this->grab) {
+      $this->box->addClass('grab', true);
+      $terminal->grabInput();
+    } else {
+      $this->box->removeClass('grab', true);
+      $terminal->releaseInput();
+    }
   }
 
   public function toggleScroll() {
     $this->scroll = !$this->scroll;
+    $terminal = $this->box->firstByType('Terminal');
+    if ($this->scroll) {
+      $terminal->scrollOn();
+      $this->box->addClass('scroll', true);
+    } else {
+      $terminal->scrollOff();
+      $this->box->removeClass('scroll', true);
+    }
   }
 
   public function getStatusString() {
@@ -83,6 +110,68 @@ class Command {
       $status .= '...';
     }
     return $status;
+  }
+
+  private function createCommandLine() {
+    $window = \SPTK\Element::firstByType('Window');
+    $block = new \SPTK\Element($window, 'newCommand', false, 'CommandBlock');
+    $this->box = $block;
+    $info = new \SPTK\Element($block, false, false, 'CommandInfo');
+    $info->setText(getcwd());
+    $cmd = new \SPTK\Element($block, false, 'new', 'Command');
+    $label = new \SPTK\Element($cmd, false, 'prompt', 'Label');
+    $label->setText('$');
+    $input = new \SPTK\Elements\Input($label, false, 'cmd');
+    $input->addClass('active', true);
+    $this->setPos(0);
+  }
+
+  private function createCommandBox() {
+    $window = \SPTK\Element::firstByType('Window');
+    $block = new \SPTK\Element($window, false, false, 'CommandBlock');
+    $this->box = $block;
+    $this->box->addClass('grab', true);
+    $info = new \SPTK\Element($block, false, false, 'CommandInfo');
+    $info->setText(getcwd());
+    $status = new \SPTK\Element($info, false, false, 'CommandStatus');
+    $status->setText($this->getStatusString());
+    $cmd = new \SPTK\Element($block, false, 'run', 'Command');
+    $cmd->setText('$ ' . $this->command);
+    $terminal = new \MADIR\Screen\Terminal($block);
+    $terminal->setBuffer($this->screenBuffer);
+    $terminal->setInputCallback([$this, 'input']);
+    $terminal->grabInput();
+    $block->addClass('grab', true);
+    $this->setPos(0);
+  }
+
+  public function setPos($y) {
+    $style = $this->box->getStyle();
+    $style->set('y', "-{$y}px");
+    $this->box->recalculateGeometry();
+  }
+
+  public function getInputElement() {
+    if ($this->command === false) {
+      return $this->box->firstByType('Input');
+    } else {
+      return $this->box->firstByType('Terminal');
+    }
+  }
+
+  public function getHeight() {
+    $geometry = $this->box->getGeometry();
+    return $geometry->height;
+  }
+
+  public function activate() {
+    if ($this->command === false || (!$this->grab && !$this->scroll)) {
+      $this->box->addClass('active', true);
+    }
+  }
+
+  public function inactivate() {
+    $this->box->removeClass('active', true);
   }
 
 }
