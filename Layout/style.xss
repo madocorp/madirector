@@ -48,18 +48,16 @@ Command {
   color: #000000;
   border: 1px;
   borderColor: #000000;
+  padding: 5px, 5px, 2px, 5px;
+}
+
+.new {
+  padding: 0px;
 }
 
 .run {
   backgroundColor: #0000aa;
   color: #ffffff;
-  padding: 5px, 5px, 2px, 5px;
-}
-
-.done {
-  backgroundColor: #bbbbbb;
-  color: #000000;
-  padding: 5px, 5px, 2px, 5px;
 }
 
 Terminal {
