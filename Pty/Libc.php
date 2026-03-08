@@ -78,6 +78,13 @@ class Libc {
     return [$sv[0], $sv[1]];
   }
 
+  public static function pipe() {
+    $libc = self::$instance->libc;
+    $sv = \FFI::new("int[2]");
+    $libc->pipe($sv);
+    return [$sv[0], $sv[1]];
+  }
+
   public static function errno(): int {
     $libc = self::$instance->libc;
     $ptr = $libc->__errno_location();
@@ -91,18 +98,19 @@ class Libc {
 
   public static function execvp($argvp) {
     $libc = self::$instance->libc;
-    $file = $argvp[0]; // fix path
     $argc = count($argvp) + 1;
     $argv = \FFI::new("char*[{$argc}]");
-    $str = [];
+    $strings = [];
     foreach ($argvp as $i => $item) {
       $len = strlen($item) + 1;
-      $str[$i] = \FFI::new("char[{$len}]");
-      \FFI::memcpy($str[$i], "{$item}\0", $len);
-      $argv[$i] = \FFI::cast("char*", $str[$i]);
+      $strings[$i] = \FFI::new("char[{$len}]");
+      \FFI::memcpy($strings[$i], "{$item}\0", $len);
+      $argv[$i] = \FFI::cast("char*", $strings[$i]);
     }
     $argv[$argc - 1] = null;
-    $libc->execvp($file, $argv);
+    $libc->execvp($argv[0], $argv);
+    $errno = self::errno();
+    fprintf(STDERR, "execvp failed: %s errno=%d\n", $argvp[0] ?? "?", $errno);
   }
 
   public static function setNonBlocking($fd) {

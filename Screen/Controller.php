@@ -54,9 +54,13 @@ class Controller {
   public static function runCommand($command) {
     $inputElement = $command->getInputElement();
     $commandString = $inputElement->getValue();
+    $parser = new \MADIR\Command\CommandParser();
+    $parsedCommands = $parser->parse($commandString);
     $inputElement->setValue('');
     $session = \MADIR\Command\Session::getCurrent();
-    $session->runCommand($commandString);
+    foreach ($parsedCommands as $parsedCommand) {
+      $session->runCommand($parsedCommand);
+    }
     self::listCommands();
     \SPTK\Element::refresh();
   }

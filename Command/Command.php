@@ -14,6 +14,7 @@ class Command {
   public $screenBuffer;
   public $cid;
   public $box;
+  public $terminal;
   private $height = false;
 
   public function __construct($command, $session) {
@@ -30,8 +31,18 @@ class Command {
     }
   }
 
+  public function getCommandMessage() {
+    return json_encode([
+      'rows' => 25,
+      'cols' => 100,
+      'wd' => $this->session->cwd(),
+      'sequence' => $this->command['sequence']
+    ]);
+  }
+
   public function output($stream) {
     $this->screenBuffer->parse($stream);
+    $this->terminal->refreshScroll();
     // if current session, on screen, etc ...
     $newHeight = $this->screenBuffer->countVisibleLines();
     if ($newHeight !== $this->height) {
@@ -49,8 +60,7 @@ class Command {
     $this->grab = false;
     $this->scroll = false;
     $this->box->removeClass('grab', true);
-    $terminal = $this->box->firstByType('Terminal');
-    $terminal->releaseInput();
+    $this->terminal->releaseInput();
     $cmd = $this->box->firstByType('Command');
     $cmd->removeClass('run');
     $this->done = microtime(true);
@@ -72,24 +82,22 @@ class Command {
 
   public function toggleGrab() {
     $this->grab = !$this->grab;
-    $terminal = $this->box->firstByType('Terminal');
     if ($this->grab) {
       $this->box->addClass('grab', true);
-      $terminal->grabInput();
+      $this->terminal->grabInput();
     } else {
       $this->box->removeClass('grab', true);
-      $terminal->releaseInput();
+      $this->terminal->releaseInput();
     }
   }
 
   public function toggleScroll() {
     $this->scroll = !$this->scroll;
-    $terminal = $this->box->firstByType('Terminal');
     if ($this->scroll) {
-      $terminal->scrollOn();
+      $this->terminal->scrollOn();
       $this->box->addClass('scroll', true);
     } else {
-      $terminal->scrollOff();
+      $this->terminal->scrollOff();
       $this->box->removeClass('scroll', true);
     }
   }
@@ -117,7 +125,7 @@ class Command {
     $block = new \SPTK\Element($window, 'newCommand', false, 'CommandBlock');
     $this->box = $block;
     $info = new \SPTK\Element($block, false, false, 'CommandInfo');
-    $info->setText(getcwd());
+    $info->setText($this->session->cwd());
     $cmd = new \SPTK\Element($block, false, 'new', 'Command');
     $label = new \SPTK\Element($cmd, false, 'prompt', 'Label');
     $label->setText('$');
@@ -132,15 +140,15 @@ class Command {
     $this->box = $block;
     $this->box->addClass('grab', true);
     $info = new \SPTK\Element($block, false, false, 'CommandInfo');
-    $info->setText(getcwd());
+    $info->setText($this->session->cwd());
     $status = new \SPTK\Element($info, false, false, 'CommandStatus');
     $status->setText($this->getStatusString());
     $cmd = new \SPTK\Element($block, false, 'run', 'Command');
-    $cmd->setText('$ ' . $this->command);
-    $terminal = new \MADIR\Screen\Terminal($block);
-    $terminal->setBuffer($this->screenBuffer);
-    $terminal->setInputCallback([$this, 'input']);
-    $terminal->grabInput();
+    $cmd->setText('$ ' . $this->command['commandString']);
+    $this->terminal = new \MADIR\Screen\Terminal($block);
+    $this->terminal->setBuffer($this->screenBuffer);
+    $this->terminal->setInputCallback([$this, 'input']);
+    $this->terminal->grabInput();
     $block->addClass('grab', true);
     $this->setPos(0);
   }

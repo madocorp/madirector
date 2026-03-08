@@ -14,7 +14,7 @@ class ScreenBuffer {
   protected $currentScreen;
   protected $scrollBuffer = [];
   protected $rows = 24;
-  protected $cols = 80;
+  protected $cols = 100;
   protected $row = 0;
   protected $col = 0;
   protected $scrollRegionStart = 0;

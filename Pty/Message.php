@@ -9,6 +9,7 @@ class Message {
   const RETURN = 2;
   const OUTPUT = 3;
   const INPUT = 4;
+  const RESIZE = 5;
 
   public static function send(int $fd, array $data): void {
     [$type, $return, $pid, $cid, $payload] = self::encode($data);
@@ -56,6 +57,9 @@ class Message {
     if (isset($data['input'])) {
       return [self::INPUT, $return, $pid, $cid, (string)$data['input']];
     }
+    if (isset($data['size'])) {
+      return [self::RESIZE, $return, $pid, $cid, (string)$data['size']];
+    }
     throw new \InvalidArgumentException('Unknown message');
   }
 
@@ -69,6 +73,8 @@ class Message {
         return ['type' => $type, 'pid' => $pid, 'cid' => $cid, 'output' => $payload];
       case self::INPUT:
         return ['type' => $type, 'pid' => $pid, 'cid' => $cid, 'input' => $payload];
+      case self::RESIZE:
+        return ['type' => $type, 'pid' => $pid, 'cid' => $cid, 'size' => $payload];
       default:
         throw new \Exception("Unknown message type=$type");
     }
