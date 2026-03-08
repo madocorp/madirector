@@ -111,6 +111,20 @@ class Terminal extends Element {
     $this->scrollMode = false;
   }
 
+  public function refreshScroll() {
+    if ($this->scrollMode) {
+      return;
+    }
+    $lines = $this->buffer->countLines();
+    $rows = $this->buffer->getRows();
+    if ($lines > $rows) {
+      $this->scrollOffset = $lines - $rows;
+    }
+    $this->cursor->setLines($lines);
+    $this->cursor->setCols($this->buffer->getCols() - 1);
+    $this->cursor->moveDocEnd();
+    $this->cursor->save();
+  }
 
   protected function calculateHeights() {
     $rows = $this->buffer->countVisibleLines();

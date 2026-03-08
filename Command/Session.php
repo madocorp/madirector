@@ -13,10 +13,12 @@ class Session {
 
   public $commands = [];
   public $selected;
+  protected $cwd;
 
   public function __construct() {
     self::$sessions[] = $this;
     self::$current = count(self::$sessions) - 1;
+    $this->cwd = \SPTK\Config::getHome();
     $this->runCommand(false);
     $this->selected = 0;
   }
@@ -46,6 +48,10 @@ class Session {
     if ($this->selected === count($this->commands) - 2) {
       $this->nextCommand();
     }
+  }
+
+  public function cwd() {
+    return $this->cwd;
   }
 
 }

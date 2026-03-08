@@ -41,9 +41,11 @@ pid_t setsid(void);
 int poll(struct pollfd *fds, nfds_t nfds, int timeout);
 int fileno(void *stream);
 int socketpair(int domain, int type, int protocol, int sv[2]);
+int pipe(int pipefd[2]);
 
 int *__errno_location(void);
 int isatty(int fd);
+pid_t getpid(void);
 pid_t tcgetpgrp(int fd);
 pid_t getpgrp(void);
 int ioctl(int fd, unsigned long request, ...);

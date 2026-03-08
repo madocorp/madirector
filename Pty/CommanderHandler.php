@@ -37,7 +37,7 @@ class CommanderHandler {
     // DEBUG:8 echo "MSGSND: main->commander [command]\n";
     Message::send(self::$commanderSocket, [
       'cid' => $commandId,
-      'command' => $command->command
+      'command' => $command->getCommandMessage()
     ]);
     return $commandId;
   }

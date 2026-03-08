@@ -1,4 +1,5 @@
 <?php
+
 namespace MADIR\Pty;
 
 class Commander {
@@ -10,7 +11,7 @@ class Commander {
 
   public function __construct($commanderSocket) {
     \SPTK\Autoload::load('\MADIR\Pty\Pty');
-    \SPTK\Autoload::load('\MADIR\Command\Executor');
+    \SPTK\Autoload::load('\MADIR\Pty\Executor');
     \SPTK\Autoload::load('\MADIR\Command\CommandParser');
     $this->commanderSocket = $commanderSocket;
     Libc::setNonBlocking($this->commanderSocket);

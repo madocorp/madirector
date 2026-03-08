@@ -1,71 +1,63 @@
 <?php
-
+// DEBUGLEVEL:4
 namespace MADIR\Command;
 
 class CommandParser {
 
   private $tokens;
-  private $pos;
+  private $pos = 0;
   private $len;
 
-  public function parse($command) {
-    $this->tokenize($command);
-    return $this->sequence();
+  public function parse($commandString) {
+    $tokens = \MADIR\Command\CommandTokenizer::start([$commandString], "\MADIR\Command\CommandTokenizer");
+    $this->tokens = $tokens[0]['tokens'];
+    // DEBUG:4 echo "Command tokens: {$commandString}\n";
+    // DEBUG:4 foreach ($this->tokens as $token) {
+    // DEBUG:4  echo "  " . str_pad("[{$token['type']}]", 25) . "\"{$token['value']}\"\n";
+    // DEBUG:4 }
+    $this->len = count($this->tokens);
+    return $this->parallel();
   }
 
-  private function tokenize($str) {
-    $tokens = [];
-    $chars = preg_split('//u', $str, null, PREG_SPLIT_NO_EMPTY);
-    $isWord = true;
-    $token = '';
-    foreach ($chars as $i => $char) {
-      if ($isWord) {
-        if (ctype_space($char)) {
-          if (!empty($token)) {
-            $tokens[] = $token;
-            $token = '';
-          }
-        } else if (in_array($char, ['&', '|', ';', '<', '>'])) {
-          if (!empty($token)) {
-            $tokens[] = $token;
-            $token = '';
-          }
-          $isWord = false;
-          $token = $char;
-        } else {
-          $token .= $char;
+  private function parallel() {
+    $parallel = [];
+    while ($this->pos < $this->len) {
+      $from = $this->pos;
+      $sequence = $this->sequence();
+      $str = '';
+      for ($i = $from; $i < $this->pos && $i < $this->len; $i++) {
+        if ($this->tokens[$i]['type'] === 'PARALLEL_SEPARATOR') {
+          continue;
         }
-      } else {
-        if (in_array($char, ['&', '|', ';', '<', '>', '1', '2'])) {
-          $token =  $token . $char;
-        } else {
-          $tokens[] = $token;
-          $token = '';
-          $isWord = true;
-          if (!ctype_space($char)) {
-            $token = $char;
-          }
-        }
+        $str .= $this->tokens[$i]['value'];
       }
+      $item = [
+        'sequence' => $sequence,
+        'commandString' => trim($str)
+      ];
+      $parallel[] = $item;
     }
-    if (!empty($token)) {
-      $tokens[] = $token;
-    }
-    $this->tokens = $tokens;
-    $this->pos = 0;
-    $this->len = count($tokens);
+    return $parallel;
   }
 
   private function sequence() {
     $sequence = [];
     while ($this->pos < $this->len) {
+      if ($this->peekType() === 'WHITESPACE') {
+        $this->pos++;
+        continue;
+      }
+      if ($this->peekType() === 'PARALLEL_SEPARATOR') {
+        $this->pos++;
+        break;
+      }
       $pipeline = $this->pipeline();
       $item = [
         'pipeline' => $pipeline,
         'op' => false
       ];
-      if (in_array($this->peek(), [';', '&&', '||'], true)) {
-        $item['op'] = $this->peek();
+      if (in_array($this->peekType(), ['OR', 'AND', 'COMMAND_SEPARATOR'], true)) {
+        $item['op'] = $this->peekValue();
         $this->pos++;
       }
       $sequence[] = $item;
@@ -77,7 +69,11 @@ class CommandParser {
     $commands = [];
     $commands[] = $this->command();
     while ($this->pos < $this->len) {
-      if ($this->peek() !== '|') {
+      if ($this->peekType() === 'WHITESPACE') {
+        $this->pos++;
+        continue;
+      }
+      if (in_array($this->peekType(), ['COMMAND_SEPARATOR', 'PARALLEL_SEPARATOR', 'AND', 'OR'], true)) {
         break;
       }
       $this->pos++;
@@ -90,14 +86,23 @@ class CommandParser {
     $argv = [];
     $redirects = [];
     while ($this->pos < $this->len) {
-      if (in_array($this->peek(), ['|', ';', '&&', '||', '&'], true)) {
+      if ($this->peekType() === 'WHITESPACE') {
+        $this->pos++;
+        continue;
+      }
+      if (in_array($this->peekType(), ['PIPE', 'COMMAND_SEPARATOR', 'PARALLEL_SEPARATOR', 'AND', 'OR'], true)) {
         break;
       }
-      if (in_array($this->peek(), ['>', '>>', '<', '2>', '2>&1'], true)) {
+      if (in_array($this->peekType(), ['REDIRECT', 'REDIRECT_APPEND', 'REDIRECT_INPUT', 'REDIRECT_STDERR', 'REDIRECT_STDERR_STDOUT'], true)) {
         $redirects[] = $this->redirect();
         continue;
       }
-      $argv[] = $this->peek();
+      if ($this->peekType() === 'QUOTED_ARGV') {
+        $argv[] = $this->qargv();
+        $this->pos++;
+        continue;
+      }
+      $argv[] = $this->peekValue();
       $this->pos++;
     }
     return [
@@ -106,15 +111,39 @@ class CommandParser {
     ];
   }
 
+  private function qargv() {
+    $qargv = '';
+    while ($this->pos < $this->len) {
+      $this->pos++;
+      if ($this->peekType() === 'QUOTED_ARGV') {
+        $this->pos++;
+        break;
+      }
+      $qargv .= $this->peekValue();
+    }
+    return $qargv;
+  }
+
   private function redirect() {
-    $operator = $this->peek();
+    $operator = $this->peekValue();
     $this->pos++;
     if ($operator === '2>&1') {
       return ['fd' => 2, 'type' => 'dup', 'target' => 1];
     }
     $fd = ($operator === '2>') ? 2 : (($operator === '<') ? 0 : 1);
     $type = $operator;
-    $target = $this->peek();
+    while ($this->pos < $this->len) {
+      if ($this->peekType() === 'ARGV') {
+        $target = $this->peekValue();
+        $this->pos++;
+        break;
+      }
+      if ($this->peekType() === 'QUOTED_ARGV') {
+        $target = $this->qargv();
+        break;
+      }
+      $this->pos++;
+    }
     return [
       'fd' => $fd,
       'type' => $type,
@@ -122,8 +151,12 @@ class CommandParser {
     ];
   }
 
-  private function peek() {
-    return $this->tokens[$this->pos] ?? null;
+  private function peekType() {
+    return $this->tokens[$this->pos]['type'] ?? null;
+  }
+
+  private function peekValue() {
+    return $this->tokens[$this->pos]['value'] ?? null;
   }
 
 }
