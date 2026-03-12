@@ -16,8 +16,9 @@ class Command {
   public $box;
   public $terminal;
   private $height = false;
+  private $value = '';
 
-  public function __construct($command, $session) {
+  public function __construct($command, $session, $internal) {
     $this->command = $command;
     $this->session = $session;
     if ($command === false) {
@@ -25,7 +26,11 @@ class Command {
     } else {
       $this->started = microtime(true);
       $this->screenBuffer = new \MADIR\Screen\ScreenBuffer;
-      $this->cid = \MADIR\Pty\CommanderHandler::runCommand($this);
+      if ($internal) {
+        $this->cid = \MADIR\Pty\CommanderHandler::nextCommandId();
+      } else {
+        $this->cid = \MADIR\Pty\CommanderHandler::runCommand($this);
+      }
       $this->createCommandBox();
       $this->height = $this->screenBuffer->countVisibleLines();
     }
@@ -36,7 +41,9 @@ class Command {
       'rows' => 25,
       'cols' => 100,
       'wd' => $this->session->cwd(),
-      'sequence' => $this->command['sequence']
+      'env' => $this->session->getenv(),
+      'sequence' => $this->command['sequence'],
+      'commandString' => $this->command['commandString']
     ]);
   }
 
@@ -125,7 +132,7 @@ class Command {
     $block = new \SPTK\Element($window, 'newCommand', false, 'CommandBlock');
     $this->box = $block;
     $info = new \SPTK\Element($block, false, false, 'CommandInfo');
-    $info->setText($this->session->cwd());
+    $info->setText(rtrim($this->session->cwd(), '/') . '/');
     $cmd = new \SPTK\Element($block, false, 'new', 'Command');
     $label = new \SPTK\Element($cmd, false, 'prompt', 'Label');
     $label->setText('$');
@@ -134,13 +141,36 @@ class Command {
     $this->setPos(0);
   }
 
+  public function refreshCommandLine() {
+    $info = \SPTK\Element::firstByType('CommandInfo', $this->box);
+    $info->setText(rtrim($this->session->cwd(), '/') . '/');
+  }
+
+  public function setValue($value) {
+    $cmd = \SPTK\Element::firstByType('Input', $this->box);
+    $cmd->setValue($value);
+  }
+
+  public function getValue() {
+    $cmd = \SPTK\Element::firstByType('Input', $this->box);
+    return $cmd->getValue();
+  }
+
+  public function saveValue() {
+    $this->value = $this->getValue();
+  }
+
+  public function restoreValue() {
+    $this->setValue($this->value);
+  }
+
   private function createCommandBox() {
     $window = \SPTK\Element::firstByType('Window');
     $block = new \SPTK\Element($window, false, false, 'CommandBlock');
     $this->box = $block;
     $this->box->addClass('grab', true);
     $info = new \SPTK\Element($block, false, false, 'CommandInfo');
-    $info->setText($this->session->cwd());
+    $info->setText(rtrim($this->session->cwd(), '/') . '/');
     $status = new \SPTK\Element($info, false, false, 'CommandStatus');
     $status->setText($this->getStatusString());
     $cmd = new \SPTK\Element($block, false, 'run', 'Command');
@@ -159,11 +189,13 @@ class Command {
     $this->box->recalculateGeometry();
   }
 
-  public function getInputElement() {
+  public function raise() {
     if ($this->command === false) {
-      return $this->box->firstByType('Input');
+      $input = $this->box->firstByType('Input');
+      $input->raise();
     } else {
-      return $this->box->firstByType('Terminal');
+      $terminal = $this->box->firstByType('Terminal');
+      $terminal->raise();
     }
   }
 

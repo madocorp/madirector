@@ -13,12 +13,12 @@ class Controller {
   }
 
   public static function keyPressHandler($element, $event) {
+    $session = \MADIR\Command\Session::getCurrent();
+    $command = $session->currentCommand();
     switch (\SPTK\SDLWrapper\KeyCombo::resolve($event['mod'], $event['scancode'], $event['key'])) {
       case \SPTK\SDLWrapper\Action::CLOSE:
         exit(0);
       case \SPTK\SDLWrapper\KeyCode::F12:
-        $session = \MADIR\Command\Session::getCurrent();
-        $command = $session->currentCommand();
         if (!$command->isNew()) {
           $command->toggleGrab();
         }
@@ -26,8 +26,6 @@ class Controller {
         \SPTK\Element::refresh();
         return true;
       case \SPTK\SDLWrapper\Action::DO_IT:
-        $session = \MADIR\Command\Session::getCurrent();
-        $command = $session->currentCommand();
         if ($command->isNew()) {
           self::runCommand($command);
         } else {
@@ -37,26 +35,37 @@ class Controller {
         \SPTK\Element::refresh();
         return true;
       case \SPTK\SDLWrapper\Action::PAGE_UP:
-        $session = \MADIR\Command\Session::getCurrent();
         $session->previousCommand();
         self::listCommands();
         \SPTK\Element::refresh();
         return true;
       case \SPTK\SDLWrapper\Action::PAGE_DOWN:
-        $session = \MADIR\Command\Session::getCurrent();
         $session->nextCommand();
         self::listCommands();
         \SPTK\Element::refresh();
         return true;
+      case \SPTK\SDLWrapper\Action::MOVE_UP:
+        if ($command->isNew()) {
+          $session->history(1);
+          \SPTK\Element::refresh();
+          return true;
+        }
+        return false;
+      case \SPTK\SDLWrapper\Action::MOVE_DOWN:
+        if ($command->isNew()) {
+          $session->history(-1);
+          \SPTK\Element::refresh();
+          return true;
+        }
+        return false;
     }
   }
 
   public static function runCommand($command) {
-    $inputElement = $command->getInputElement();
-    $commandString = $inputElement->getValue();
+    $commandString = $command->getValue();
     $parser = new \MADIR\Command\CommandParser();
     $parsedCommands = $parser->parse($commandString);
-    $inputElement->setValue('');
+    $command->setValue('');
     $session = \MADIR\Command\Session::getCurrent();
     foreach ($parsedCommands as $parsedCommand) {
       $session->runCommand($parsedCommand);
@@ -85,7 +94,7 @@ class Controller {
         break;
       }
     }
-    $commands[0]->getInputElement()->raise();
+    $commands[0]->raise();
   }
 
 }
