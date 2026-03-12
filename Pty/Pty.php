@@ -12,8 +12,6 @@ class Pty {
 
   public function __construct($socket) {
     cli_set_process_title('MADIRPty');
-    putenv("LANG=en_US.UTF-8");
-    putenv("TERM=xterm-256color");
     $this->pid = getmypid();
     $this->socket = $socket;
     Libc::setNonBlocking($this->socket);
@@ -40,6 +38,7 @@ class Pty {
     $command = json_decode($message['command'], true);
     Libc::setSize($this->master, $command['rows'], $command['cols']);
     chdir($command['wd']);
+    $this->setEnv($command['env']);
     $executor = new Executor($command['sequence'], $this->master, $this->slave);
     $run = $executor->startSequence();
     $masterAlive = true;
@@ -87,6 +86,14 @@ class Pty {
       'pid' => $this->pid,
       'output' => $output
     ]);
+  }
+
+  private function setEnv($env) {
+    $libc = Libc::$instance->libc;
+    $libc->clearenv();
+    foreach ($env as $key => $value) {
+      $libc->setenv($key, $value, 1);
+    }
   }
 
 }

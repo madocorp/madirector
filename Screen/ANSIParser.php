@@ -203,6 +203,9 @@ class ANSIParser {
     switch ($final) {
       case 'm':
         foreach ($params as $i => $param) {
+          if (is_null($param)) {
+            $param = 0;
+          }
           if (!is_int($param)) {
             continue;
           }

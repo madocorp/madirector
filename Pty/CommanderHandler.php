@@ -42,6 +42,11 @@ class CommanderHandler {
     return $commandId;
   }
 
+  public static function nextCommandId() {
+    self::$commandId++;
+    return self::$commandId;
+  }
+
   public static function sendInput($cid, $input) {
     // DEBUG:8 echo "MSGSND: main->commander [input]\n";
     Message::send(self::$commanderSocket, [
