@@ -104,7 +104,7 @@ class Terminal extends Element {
   public function scrollOn() {
     $this->scrollMode = true;
     $this->cursor->setLines($this->buffer->countLines());
-    $this->cursor->setCols($this->buffer->getCols() - 1);
+    $this->cursor->setCols($this->buffer->getCols());
   }
 
   public function scrollOff() {
@@ -121,7 +121,7 @@ class Terminal extends Element {
       $this->scrollOffset = $lines - $rows;
     }
     $this->cursor->setLines($lines);
-    $this->cursor->setCols($this->buffer->getCols() - 1);
+    $this->cursor->setCols($this->buffer->getCols());
     $this->cursor->moveDocEnd();
     $this->cursor->save();
   }
@@ -282,10 +282,12 @@ class Terminal extends Element {
       return false;
     }
     new \SPTK\Border($this->texture, $this->geometry, $this->ancestor->geometry, $this->style);
-    if ($this->scrollMode) {
-      new \SPTK\Scrollbar($this->texture, 0, $this->scrollOffset * $this->letterHeight, $this->geometry->contentWidth, $this->buffer->countLines() * $this->letterHeight, $this->geometry, $this->style);
-    }
+    new \SPTK\Scrollbar($this->texture, 0, $this->scrollOffset * $this->letterHeight, $this->geometry->contentWidth, $this->buffer->countLines() * $this->letterHeight, $this->geometry, $this->style);
     return $this->texture;
+  }
+
+  protected function getSelection() {
+    return "TODO";
   }
 
   public function keyPressHandler($element, $event) {
@@ -311,7 +313,7 @@ class Terminal extends Element {
       }
       return true;
     } else if ($this->scrollMode) {
-      $handled = $this->cursor->handleKeys($keycombo, $this->buffer->getRows(), $this->buffer->getCols());
+      $handled = $this->cursor->handleKeys($keycombo, $this->buffer->getRows() - 1, $this->buffer->getCols());
       $this->cursor->save();
       if ($handled) {
         $c = $this->cursor->get();
@@ -334,11 +336,11 @@ class Terminal extends Element {
         /* MOVE and SELECT*/
         /* COPY */
         case Action::COPY:
-          Clipboard::set($this->cursor->getSelection());
+          \SPTK\Clipboard::set($this->getSelection());
           $this->cursor->resetSelection();
           break;
         case Action::PASTE:
-          $paste = Clipboard::get();
+          $paste = \SPTK\Clipboard::get();
           if ($paste !== false) {
             call_user_func($this->inputCallback, $paster);
           }
