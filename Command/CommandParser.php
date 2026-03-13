@@ -1,12 +1,15 @@
 <?php
-// DEBUGLEVEL:4
+
 namespace MADIR\Command;
 
 class CommandParser {
 
+  const ALIAS_LIMIT = 100;
+
   private $tokens;
   private $pos = 0;
   private $len;
+  private $aliasCounter = 0;
 
   public function parse($commandString) {
     $tokens = \MADIR\Command\CommandTokenizer::start([$commandString], "\MADIR\Command\CommandTokenizer");
@@ -85,6 +88,8 @@ class CommandParser {
   private function command() {
     $argv = [];
     $redirects = [];
+    $startPos = false;
+    $resolvedAliases = [];
     while ($this->pos < $this->len) {
       if ($this->peekType() === 'WHITESPACE') {
         $this->pos++;
@@ -97,10 +102,22 @@ class CommandParser {
         $redirects[] = $this->redirect();
         continue;
       }
+      if ($startPos === false) {
+        $startPos = $this->pos;
+      }
       if ($this->peekType() === 'QUOTED_ARGV') {
         $argv[] = $this->qargv();
         $this->pos++;
         continue;
+      }
+      if ($startPos === $this->pos) {
+        $value = $this->peekValue();
+        if (!isset($resolvedAliases[$value])) {
+          if ($this->resolveAlias()) {
+            $resolvedAliases[$value] = true;
+            continue;
+          }
+        }
       }
       $argv[] = $this->peekValue();
       $this->pos++;
@@ -159,5 +176,22 @@ class CommandParser {
     return $this->tokens[$this->pos]['value'] ?? null;
   }
 
-}
+  private function resolveAlias() {
+    $aliasList = Session::getAliasList();
+    $command = $this->peekValue();
+    if (!isset($aliasList[$command])) {
+      return false;
+    }
+    $command = $aliasList[$command];
+    $tokens = \MADIR\Command\CommandTokenizer::start([$command], "\MADIR\Command\CommandTokenizer");
+    $tokens = $tokens[0]['tokens'];
+    array_splice($this->tokens, $this->pos, 1, $tokens);
+    $this->len = count($this->tokens);
+    $this->aliasCounter++;
+    if ($this->aliasCounter > self::ALIAS_LIMIT) {
+      throw new \Exception('Infinite alias loop detected!');
+    }
+    return true;
+  }
 
+}

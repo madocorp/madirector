@@ -431,16 +431,16 @@ class ScreenBuffer {
 
   public function countVisibleLines() {
     if ($this->currentScreen === $this->mainScreen) {
-      return min($this->rows, $this->mainHeight + 1);
+      return min($this->rows, $this->mainHeight + 0);
     }
-    return $this->rows;
+    return $this->rows - 1;
   }
 
   public function countLines() {
     if ($this->currentScreen === $this->mainScreen) {
-      return $this->mainHeight + 1 + count($this->scrollBuffer);
+      return $this->mainHeight + 0 + count($this->scrollBuffer);
     }
-    return $this->rows;
+    return $this->rows - 1;
   }
 
   public function saveCursor($saveState = false) {
@@ -495,11 +495,11 @@ class ScreenBuffer {
 
 
   public function getRows() {
-    return $this->rows;
+    return $this->rows - 1;
   }
 
   public function getCols() {
-    return $this->cols;
+    return $this->cols - 1;
   }
 
 }
