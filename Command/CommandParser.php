@@ -6,10 +6,15 @@ class CommandParser {
 
   const ALIAS_LIMIT = 100;
 
+  private $session;
   private $tokens;
   private $pos = 0;
   private $len;
   private $aliasCounter = 0;
+
+  public function __construct($session) {
+    $this->session = $session;
+  }
 
   public function parse($commandString) {
     $tokens = \MADIR\Command\CommandTokenizer::start([$commandString], "\MADIR\Command\CommandTokenizer");
@@ -119,7 +124,12 @@ class CommandParser {
           }
         }
       }
-      $argv[] = $this->peekValue();
+      if ($this->peekType() === 'VARIABLE') {
+        $var = $this->peekValue();
+        $argv[] = $this->session->getvar($var);
+      } else {
+        $argv[] = $this->peekValue();
+      }
       $this->pos++;
     }
     return [

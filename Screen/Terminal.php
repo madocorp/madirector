@@ -123,6 +123,7 @@ class Terminal extends Element {
     $this->cursor->setLines($lines);
     $this->cursor->setCols($this->buffer->getCols());
     $this->cursor->moveDocEnd();
+    $this->cursor->moveLineStart();
     $this->cursor->save();
   }
 

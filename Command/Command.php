@@ -17,6 +17,8 @@ class Command {
   public $terminal;
   private $height = false;
   private $value = '';
+  private $maxRows = 25;
+  private $maxCols = 100;
 
   public function __construct($command, $session, $internal) {
     $this->command = $command;
@@ -25,7 +27,8 @@ class Command {
       $this->createCommandLine();
     } else {
       $this->started = microtime(true);
-      $this->screenBuffer = new \MADIR\Screen\ScreenBuffer;
+      $this->setMaxSize();
+      $this->screenBuffer = new \MADIR\Screen\ScreenBuffer($this->maxRows, $this->maxCols);
       if ($internal) {
         $this->cid = \MADIR\Pty\CommanderHandler::nextCommandId();
       } else {
@@ -38,8 +41,8 @@ class Command {
 
   public function getCommandMessage() {
     return json_encode([
-      'rows' => 25,
-      'cols' => 100,
+      'rows' => $this->maxRows,
+      'cols' => $this->maxCols,
       'wd' => $this->session->cwd(),
       'env' => $this->session->getenv(),
       'sequence' => $this->command['sequence'],
@@ -135,7 +138,7 @@ class Command {
     $info->setText(rtrim($this->session->cwd(), '/') . '/');
     $cmd = new \SPTK\Element($block, false, 'new', 'Command');
     $label = new \SPTK\Element($cmd, false, 'prompt', 'Label');
-    $label->setText('$');
+    $label->setText('>');
     $input = new \SPTK\Elements\Input($label, false, 'cmd');
     $input->addClass('active', true);
     $this->setPos(0);
@@ -174,7 +177,7 @@ class Command {
     $status = new \SPTK\Element($info, false, false, 'CommandStatus');
     $status->setText($this->getStatusString());
     $cmd = new \SPTK\Element($block, false, 'run', 'Command');
-    $cmd->setText('$ ' . $this->command['commandString']);
+    $cmd->setText('> ' . $this->command['commandString']);
     $this->terminal = new \MADIR\Screen\Terminal($block);
     $this->terminal->setBuffer($this->screenBuffer);
     $this->terminal->setInputCallback([$this, 'input']);
@@ -212,6 +215,11 @@ class Command {
 
   public function inactivate() {
     $this->box->removeClass('active', true);
+  }
+
+  public function setMaxSize() {
+    $this->maxRows = 25;
+    $this->maxCols = 100;
   }
 
 }

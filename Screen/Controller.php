@@ -63,10 +63,10 @@ class Controller {
 
   public static function runCommand($command) {
     $commandString = $command->getValue();
-    $parser = new \MADIR\Command\CommandParser();
+    $session = \MADIR\Command\Session::getCurrent();
+    $parser = new \MADIR\Command\CommandParser($session);
     $parsedCommands = $parser->parse($commandString);
     $command->setValue('');
-    $session = \MADIR\Command\Session::getCurrent();
     foreach ($parsedCommands as $parsedCommand) {
       $session->runCommand($parsedCommand);
     }

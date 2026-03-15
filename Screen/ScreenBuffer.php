@@ -13,8 +13,8 @@ class ScreenBuffer {
   protected $altScreen;
   protected $currentScreen;
   protected $scrollBuffer = [];
-  protected $rows = 24;
-  protected $cols = 100;
+  protected $rows = 25;
+  protected $cols = 80;
   protected $row = 0;
   protected $col = 0;
   protected $scrollRegionStart = 0;
@@ -30,7 +30,9 @@ class ScreenBuffer {
   protected $otherScreenState = false;
   protected $mainHeight = 1;
 
-  public function __construct() {
+  public function __construct($rows, $cols) {
+    $this->rows = $rows;
+    $this->cols = $cols;
     $this->parser = new ANSIParser($this);
     $this->fg = $this->parser->colors[7];
     $this->bg = $this->parser->colors[0];
@@ -431,16 +433,16 @@ class ScreenBuffer {
 
   public function countVisibleLines() {
     if ($this->currentScreen === $this->mainScreen) {
-      return min($this->rows, $this->mainHeight + 0);
+      return min($this->rows, $this->mainHeight);
     }
-    return $this->rows - 1;
+    return $this->rows;
   }
 
   public function countLines() {
     if ($this->currentScreen === $this->mainScreen) {
-      return $this->mainHeight + 0 + count($this->scrollBuffer);
+      return $this->mainHeight + count($this->scrollBuffer);
     }
-    return $this->rows - 1;
+    return $this->rows;
   }
 
   public function saveCursor($saveState = false) {
@@ -473,7 +475,7 @@ class ScreenBuffer {
   public function setRow($row) {
     $this->row = $row;
     if ($this->currentScreen === $this->mainScreen) {
-      $this->mainHeight = max($row, $this->mainHeight);
+      $this->mainHeight = max($row + 1, $this->mainHeight);
     }
   }
 
@@ -495,7 +497,7 @@ class ScreenBuffer {
 
 
   public function getRows() {
-    return $this->rows - 1;
+    return $this->rows;
   }
 
   public function getCols() {

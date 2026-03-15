@@ -9,7 +9,7 @@ class Session {
   public static $sessions = [];
   public static $current;
   public static $alias = [
-    'ls' => 'ls --color'
+    'ls' => 'ls --color=auto'
   ];
 
   public static function getCurrent() {
@@ -22,6 +22,7 @@ class Session {
   protected $pwd;
   protected $history = 1;
   protected $env;
+  public $vars = [];
 
   public function __construct() {
     self::$sessions[] = $this;
@@ -104,6 +105,17 @@ class Session {
     return $this->env;
   }
 
+  public function getvar($name) {
+    $vname = substr($name, 1);
+    if (isset($this->env[$vname])) {
+      return $this->env[$vname];
+    }
+    if (isset($this->vars[$vname])) {
+      return $this->vars[$vname];
+    }
+    return $name;
+  }
+
   private function handleInternal($command, &$output) {
     $commandString = trim($command['commandString']);
     if (preg_match('/^cd( |$)/', $commandString)) {
@@ -116,6 +128,18 @@ class Session {
     }
     if (preg_match('/^alias( |$)/', $commandString)) {
       $output = $this->alias($commandString);
+      return true;
+    }
+    if (preg_match('/^session( |$)/', $commandString)) {
+      $output = $this->session($commandString);
+      return true;
+    }
+    if (preg_match('/^[0-9]+$/', $commandString)) {
+      $output = $this->session("session {$commandString}");
+      return true;
+    }
+    if (preg_match('/^\$[A-Za-z][A-Za-z0-9_-]*=.*$/', $commandString)) {
+      $output = $this->variable($commandString);
       return true;
     }
     // exit: close session

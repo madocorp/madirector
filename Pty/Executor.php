@@ -112,19 +112,24 @@ class Executor {
   }
 
   private function applyRedirects($redirects) {
+    $libc = Libc::$instance->libc;
     foreach ($redirects as $r) {
       if ($r['type'] === 'dup') {
         Libc::dup2($r['target'], $r['fd']);
         continue;
       }
       if ($r['type'] === '>') {
-        $fd = Libc::open($r['target'], Libc::O_WRONLY | Libc::O_CREAT | Libc::O_TRUNC);
+        $fd = $libc->open($r['target'], Libc::O_WRONLY | Libc::O_CREAT | Libc::O_TRUNC, 0644);
       } elseif ($r['type'] === '>>') {
-        $fd = Libc::open($r['target'], Libc::O_WRONLY | Libc::O_CREAT | Libc::O_APPEND);
+        $fd = $libc->open($r['target'], Libc::O_WRONLY | Libc::O_CREAT | Libc::O_APPEND, 0644);
       } elseif ($r['type'] === '<') {
-        $fd = Libc::open($r['target'], Libc::O_RDONLY);
+        $fd = $libc->open($r['target'], Libc::O_RDONLY);
       } else {
         continue;
+      }
+      if ($fd < 0) {
+        echo "Failed to open {$r['target']}\n";
+        exit(127);
       }
       Libc::dup2($fd, $r['fd']);
     }

@@ -58,10 +58,6 @@ class Libc {
     $slave = $aslave->cdata;
   }
 
-  public static function open($filename) {
-    $libc = self::$instance->libc;
-  }
-
   public static function dup2($oldfd, $newfd) {
     $libc = self::$instance->libc;
     $res = $libc->dup2($oldfd, $newfd);
