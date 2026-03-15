@@ -17,7 +17,7 @@ class Pty {
     Libc::setNonBlocking($this->socket);
     Libc::openpty($this->master, $this->slave);
     Libc::setNonBlocking($this->master);
-    Libc::setSize($this->master, 24, 80);
+    Libc::setSize($this->master, 25, 80);
     Libc::setsid();
     $libc = Libc::$instance->libc;
     $libc->ioctl($this->slave, Libc::TIOCSCTTY, 0);

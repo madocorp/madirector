@@ -29,7 +29,7 @@ struct winsize {
 int tcgetattr(int fd, struct termios *termios_p);
 int tcsetattr(int fd, int optional_actions, const struct termios *termios_p);
 int openpty(int *amaster, int *aslave, char *name, void *termp, void *winp);
-int open(const char *path, int flags);
+int open(const char *path, int flags, ...);
 int dup2(int oldfd, int newfd);
 int socketpair(int domain, int type, int protocol, int sv[2]);
 ssize_t read(int fd, void *buf, size_t count);
