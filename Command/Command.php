@@ -11,30 +11,38 @@ class Command {
   public $returnValue = false;
   public $grab = true;
   public $scroll = false;
+  private $zoom = false;
   public $screenBuffer;
-  public $cid;
+  private $cid;
   public $box;
   public $terminal;
   private $height = false;
   private $value = '';
   private $maxRows = 25;
-  private $maxCols = 100;
+  private $maxCols = 80;
 
-  public function __construct($command, $session, $internal) {
+  public function __construct($command, $session, $internal, $boxSize = 1) {
     $this->command = $command;
     $this->session = $session;
     if ($command === false) {
       $this->createCommandLine();
     } else {
       $this->started = microtime(true);
-      $this->setMaxSize();
+      $sizes = \MADIR\Screen\Controller::$sizes;
+      if (!empty($sizes)) {
+        $this->maxRows = (int)((($sizes['windowHeight'] / $boxSize) - $sizes['verticalOverhead'] - $sizes['verticalGap']*2) / $sizes['letterHeight']);
+        $this->maxCols = (int)((($sizes['windowWidth'] / $boxSize) - $sizes['horizontalOverhead'] - $sizes['horizontalGap']) / $sizes['letterWidth']);
+      }
       $this->screenBuffer = new \MADIR\Screen\ScreenBuffer($this->maxRows, $this->maxCols);
       if ($internal) {
         $this->cid = \MADIR\Pty\CommanderHandler::nextCommandId();
       } else {
         $this->cid = \MADIR\Pty\CommanderHandler::runCommand($this);
       }
-      $this->createCommandBox();
+      $this->createCommandBox($boxSize);
+      if ($boxSize > 1) {
+        $this->screenBuffer->setFill(true);
+      }
       $this->height = $this->screenBuffer->countVisibleLines();
     }
   }
@@ -71,15 +79,20 @@ class Command {
     $this->scroll = false;
     $this->box->removeClass('grab', true);
     $this->terminal->releaseInput();
-    $cmd = $this->box->firstByType('Command');
+    $cmd = \SPTK\Element::firstByType('Command', $this->box);
     $cmd->removeClass('run');
     $this->done = microtime(true);
-    $info = $this->box->firstByType('CommandStatus');
+    $info = \SPTK\Element::firstByType('CommandStatus', $this->box);
     $info->setText($this->getStatusString());
     $this->screenBuffer->cursor(false);
     $this->session->endCommand();
     \MADIR\Screen\Controller::listCommands();
     \SPTK\Element::refresh();
+  }
+
+  public function setSize($rows, $cols) {
+    $this->screenBuffer->setSize($rows, $cols);
+    \MADIR\Pty\CommanderHandler::sendSize($this->cid, $rows, $cols);
   }
 
   public function isNew() {
@@ -90,8 +103,24 @@ class Command {
     return $this->done === false;
   }
 
-  public function toggleGrab() {
-    $this->grab = !$this->grab;
+  public function isGrabbed() {
+    return $this->grab;
+  }
+
+  public function isScrolled() {
+    return $this->scroll;
+  }
+
+  public function isZoomed() {
+    return $this->zoom;
+  }
+
+  public function toggleGrab($grab = null) {
+    if ($grab === null) {
+      $this->grab = !$this->grab;
+    } else {
+      $this->grab = $grab;
+    }
     if ($this->grab) {
       $this->box->addClass('grab', true);
       $this->terminal->grabInput();
@@ -101,14 +130,35 @@ class Command {
     }
   }
 
-  public function toggleScroll() {
-    $this->scroll = !$this->scroll;
+  public function toggleScroll($scroll = null) {
+    if ($scroll === null) {
+      $this->scroll = !$this->scroll;
+    } else {
+      $this->scroll = $scroll;
+    }
     if ($this->scroll) {
       $this->terminal->scrollOn();
       $this->box->addClass('scroll', true);
     } else {
       $this->terminal->scrollOff();
       $this->box->removeClass('scroll', true);
+    }
+  }
+
+  public function toggleZoom($zoom = null) {
+    if ($zoom === null) {
+      $this->zoom = !$this->zoom;
+    } else {
+      $this->zoom = $zoom;
+    }
+    if ($this->zoom) {
+      $this->terminal->remove();
+      $this->terminal->addClass('zoom');
+      $this->setSize($this->zoomRows, $this->zoomCols);
+    } else {
+      $this->box->addDescendant($this->terminal);
+      $this->terminal->removeClass('zoom');
+      $this->setSize($this->maxRows, $this->maxCols);
     }
   }
 
@@ -167,11 +217,16 @@ class Command {
     $this->setValue($this->value);
   }
 
-  private function createCommandBox() {
+  private function createCommandBox($boxSize) {
     $window = \SPTK\Element::firstByType('Window');
     $block = new \SPTK\Element($window, false, false, 'CommandBlock');
     $this->box = $block;
     $this->box->addClass('grab', true);
+    if ($boxSize === 2) {
+      $this->box->addClass('half');
+    } else if ($boxSize === 3) {
+      $this->box->addClass('third');
+    }
     $info = new \SPTK\Element($block, false, false, 'CommandInfo');
     $info->setText(rtrim($this->session->cwd(), '/') . '/');
     $status = new \SPTK\Element($info, false, false, 'CommandStatus');
@@ -194,10 +249,10 @@ class Command {
 
   public function raise() {
     if ($this->command === false) {
-      $input = $this->box->firstByType('Input');
+      $input = \SPTK\Element::firstByType('Input', $this->box);
       $input->raise();
     } else {
-      $terminal = $this->box->firstByType('Terminal');
+      $terminal = \SPTK\Element::firstByType('Terminal', $this->box);
       $terminal->raise();
     }
   }
@@ -217,9 +272,8 @@ class Command {
     $this->box->removeClass('active', true);
   }
 
-  public function setMaxSize() {
-    $this->maxRows = 25;
-    $this->maxCols = 100;
+  public function getCid() {
+    return $this->cid;
   }
 
 }

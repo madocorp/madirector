@@ -4,11 +4,12 @@ namespace MADIR\Screen;
 
 class Controller {
 
-  private static $commandGap = 10;
+  public static $sizes = [];
 
   public static function init() {
     cli_set_process_title('MADIR');
     new \MADIR\Command\Session();
+    self::measureSize();
     self::ListCommands();
   }
 
@@ -17,10 +18,48 @@ class Controller {
     $command = $session->currentCommand();
     switch (\SPTK\SDLWrapper\KeyCombo::resolve($event['mod'], $event['scancode'], $event['key'])) {
       case \SPTK\SDLWrapper\Action::CLOSE:
-        exit(0);
+        if ($command->isScrolled()) {
+          $command->toggleScroll(false);
+        }
+        self::listCommands();
+        \SPTK\Element::refresh();
+        return true;
       case \SPTK\SDLWrapper\KeyCode::F12:
-        if (!$command->isNew()) {
+        if ($command->isNew()) {
+          return true;
+        }
+        if ($event['mod'] & \SPTK\SDLWrapper\KeyModifier::SHIFT) {
+          if ($command->isGrabbed()) {
+            $command->toggleGrab(false);
+            $command->toggleScroll(true);
+          } else {
+            $command->toggleGrab(true);
+            $command->toggleScroll(false);
+          }
+        } else if ($command->isZoomed()) {
+          $command->toggleZoom(false);
+          $command->toggleGrab(false);
+          $command->toggleScroll(false);
+        } else {
+          $command->toggleScroll(false);
           $command->toggleGrab();
+        }
+        self::listCommands();
+        \SPTK\Element::refresh();
+        return true;
+      case \SPTK\SDLWrapper\KeyCode::F11:
+        if ($command->isNew()) {
+          return true;
+        }
+        if ($command->isZoomed()) {
+          $command->toggleZoom(false);
+          $command->toggleGrab(false);
+          $command->toggleScroll(false);
+        } else {
+          $command->toggleZoom(true);
+          if (!$command->isScrolled()) {
+            $command->toggleGrab(true);
+          }
         }
         self::listCommands();
         \SPTK\Element::refresh();
@@ -28,9 +67,11 @@ class Controller {
       case \SPTK\SDLWrapper\Action::DO_IT:
         if ($command->isNew()) {
           self::runCommand($command);
-        } else {
-          $command->toggleScroll();
+          self::listCommands();
+          \SPTK\Element::refresh();
+          return true;
         }
+        $command->toggleScroll();
         self::listCommands();
         \SPTK\Element::refresh();
         return true;
@@ -47,18 +88,48 @@ class Controller {
       case \SPTK\SDLWrapper\Action::MOVE_UP:
         if ($command->isNew()) {
           $session->history(1);
-          \SPTK\Element::refresh();
-          return true;
+        } else {
+          $session->moveGroupCursor(0, -1);
+          self::listCommands();
         }
-        return false;
+        \SPTK\Element::refresh();
+        return true;
       case \SPTK\SDLWrapper\Action::MOVE_DOWN:
         if ($command->isNew()) {
           $session->history(-1);
-          \SPTK\Element::refresh();
-          return true;
+        } else {
+          $session->moveGroupCursor(0, 1);
+          self::listCommands();
         }
-        return false;
+        \SPTK\Element::refresh();
+        return true;
+      case \SPTK\SDLWrapper\Action::MOVE_LEFT:
+        if ($command->isNew()) {
+          return false;
+        }
+        $session->moveGroupCursor(-1, 0);
+        self::listCommands();
+        \SPTK\Element::refresh();
+        return true;
+      case \SPTK\SDLWrapper\Action::MOVE_RIGHT:
+        if ($command->isNew()) {
+          return false;
+        }
+        $session->moveGroupCursor(1, 0);
+        self::listCommands();
+        \SPTK\Element::refresh();
+        return true;
     }
+  }
+
+  private static function getBoxSize($n) {
+    if ($n > 4) {
+      return 3;
+    }
+    if ($n > 1) {
+      return 2;
+    }
+    return 1;
   }
 
   public static function runCommand($command) {
@@ -67,34 +138,75 @@ class Controller {
     $parser = new \MADIR\Command\CommandParser($session);
     $parsedCommands = $parser->parse($commandString);
     $command->setValue('');
+    $n = count($parsedCommands);
+    $boxSize = self::getBoxSize($n);
+    $group = $n;
     foreach ($parsedCommands as $parsedCommand) {
-      $session->runCommand($parsedCommand);
+      $session->runCommand($parsedCommand, $group, $boxSize);
     }
-    self::listCommands();
-    \SPTK\Element::refresh();
   }
 
   public static function listCommands() {
     $window = \SPTK\Element::firstByType('Window');
     $window->clear();
-    $geometry = $window->getGeometry();
+    $wgeometry = $window->getGeometry();
     $session = \MADIR\Command\Session::getCurrent();
+    $command = $session->currentCommand();
+    if ($command->isZoomed()) {
+      $window->addDescendant($command->terminal);
+      $command->raise();
+      return;
+    }
     $commands = $session->getVisibleCommands();
-    $y = self::$commandGap;
+    $groupCursor = $session->getGroupCursor();
+    $y = 0;
     foreach ($commands as $i => $command) {
-      if ($i === 0) {
-        $command->activate();
-      } else {
-        $command->inactivate();
+      $groupBox = new \SPTK\Element($window, false, false, 'CommandGroup');
+      $style = $groupBox->getStyle();
+      $style->set('y', "-{$y}px");
+      foreach ($command as $j => $gcommand) {
+        if ($i === 0 && $j === $groupCursor) {
+          $gcommand->activate();
+        } else {
+          $gcommand->inactivate();
+        }
+        $groupBox->addDescendant($gcommand->box);
       }
-      $window->addDescendant($command->box);
-      $command->setPos($y);
-      $y += $command->getHeight() + self::$commandGap;
-      if ($y > $geometry->height) {
+      $groupBox->recalculateGeometry();
+      $ggeometry = $groupBox->getGeometry();
+      $y += $ggeometry->height;
+      if ($y > $wgeometry->height) {
         break;
       }
     }
-    $commands[0]->raise();
+    $commands[0][$groupCursor]->raise();
+  }
+
+  public static function measureSize() {
+    $session = \MADIR\Command\Session::getCurrent();
+    $parser = new \MADIR\Command\CommandParser($session);
+    $parsedCommands = $parser->parse('%MeasureTerminalSize%');
+    $cid = $session->runCommand($parsedCommands[0]);
+    $command = $session->getCommand($cid);
+    $group = $command->box->getAncestor();
+    $terminal = \SPTK\Element::firstByType('Terminal', $command->box);
+    $window = \SPTK\Element::firstByType('Window');
+    $window->recalculateGeometry();
+    $wgeometry = $window->getGeometry();
+    $ggeometry = $group->getGeometry();
+    $tgeometry = $terminal->getGeometry();
+    $bgeometry = $command->box->getGeometry();
+    $session->deleteCommand($cid);
+    $letterWidth = $terminal->getLetterWidth();
+    $letterHeight = $terminal->getLetterHeight();
+    self::$sizes['verticalOverhead'] = $bgeometry->height - $letterHeight;
+    self::$sizes['horizontalOverhead'] = $bgeometry->borderLeft + $tgeometry->borderLeft + $bgeometry->borderRight + $tgeometry->borderRight;
+    self::$sizes['verticalGap'] = (int)(($ggeometry->height - $bgeometry->height) / 2);
+    self::$sizes['horizontalGap'] = (int)(($wgeometry->innerWidth - $bgeometry->width) / 2);
+    self::$sizes['windowHeight'] = $wgeometry->innerHeight;
+    self::$sizes['windowWidth'] = $wgeometry->innerWidth;
+    self::$sizes['letterHeight'] = $letterHeight;
+    self::$sizes['letterWidth'] = $letterWidth;
   }
 
 }

@@ -30,15 +30,14 @@ class CommandParser {
   private function parallel() {
     $parallel = [];
     while ($this->pos < $this->len) {
-      $from = $this->pos;
-      $sequence = $this->sequence();
       $str = '';
-      for ($i = $from; $i < $this->pos && $i < $this->len; $i++) {
+      for ($i = $this->pos; $i < $this->len; $i++) {
         if ($this->tokens[$i]['type'] === 'PARALLEL_SEPARATOR') {
-          continue;
+          break;
         }
         $str .= $this->tokens[$i]['value'];
       }
+      $sequence = $this->sequence();
       $item = [
         'sequence' => $sequence,
         'commandString' => trim($str)

@@ -11,7 +11,7 @@ require_once 'SPTK/Autoload.php';
 new \SPTK\App(
   'Layout/madirector.xml',
   'Layout/style.xss',
-  ['\MADIR\Screen\Controller', 'init'],
+  false,
   ['\MADIR\Pty\CommanderHandler', 'loop'],
   false,
   false
