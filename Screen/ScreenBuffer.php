@@ -29,6 +29,7 @@ class ScreenBuffer {
   protected $applicationKeypad = false;
   protected $otherScreenState = false;
   protected $mainHeight = 1;
+  protected $fill = false;
 
   public function __construct($rows, $cols) {
     $this->rows = $rows;
@@ -93,6 +94,10 @@ class ScreenBuffer {
       $this->savedCursor = $this->otherScreenState['savedCursor'];
     }
     $this->otherScreenState = $state;
+  }
+
+  public function setFill($fill) {
+    $this->fill = $fill;
   }
 
   public function putChar($chr) {
@@ -425,14 +430,23 @@ class ScreenBuffer {
       if ($n < $this->rows) {
         $lines2 = array_slice($this->currentScreen, 0, $this->rows - $n);
       }
-      return array_merge($lines, $lines2);
+      $lines = array_merge($lines, $lines2);
+      if ($this->fill) {
+        $n = count($lines);
+        if ($n < $this->rows) {
+          for ($i = 0; $i < $this->rows - $n; $i++) {
+            $lines[] = $this->emptyLine();
+          }
+        }
+      }
+      return $lines;
     } else {
       return $this->currentScreen;
     }
   }
 
   public function countVisibleLines() {
-    if ($this->currentScreen === $this->mainScreen) {
+    if (!$this->fill && $this->currentScreen === $this->mainScreen) {
       return min($this->rows, $this->mainHeight);
     }
     return $this->rows;
@@ -492,7 +506,7 @@ class ScreenBuffer {
 
   public function setSize($rows, $cols) {
     $this->rows = $rows;
-    $this->cols = $col;
+    $this->cols = $cols;
   }
 
 

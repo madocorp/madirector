@@ -3,16 +3,25 @@ Window {
   height: max;
   backgroundColor: #000000;
   color: #bbbbbb;
+  font: LiberationMono-Bold;
+  fontSize: 17px;
+}
+
+CommandGroup {
+  position: absolute;
+  width: 100%w;
+  backgroundColor: #000000;
 }
 
 CommandBlock {
-  position: absolute;
-  width: 99%w;
+  position: inline;
+  width: 99%;
   border: 1px;
   borderColor: #bbbbbb;
   backgroundColor: #bbbbbb;
   color: #333333;
-  margin: 0, 10px;
+  marginLeft: 0.5%w;
+  marginBottom: 0.5%w;
 }
 
 CommandBlock:active {
@@ -33,6 +42,14 @@ CommandBlock:grab {
   color: #ffffff;
 }
 
+.half {
+  width: 49.25%w;
+}
+
+.third {
+  width: 32.666%w;
+}
+
 CommandInfo {
   width: 100%;
 }
@@ -48,7 +65,7 @@ Command {
   color: #000000;
   border: 1px;
   borderColor: #000000;
-  padding: 5px, 5px, 2px, 5px;
+  padding: 8px, 5px, 3px, 5px;
 }
 
 .new {
@@ -63,12 +80,17 @@ Command {
 Terminal {
   width: 100%;
   height: calculated;
-  padding: 5px;
+  padding: 0px;
   textWrap: manual;
   backgroundColor: #000000;
   color: #bbbbbb;
   font: LiberationMono-Bold;
   fontSize: 17px;
+}
+
+.zoom {
+  height: 100%;
+  padding: 0px;
 }
 
 .new {

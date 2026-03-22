@@ -31,8 +31,8 @@ class CommanderHandler {
   }
 
   public static function runCommand($command) {
-    self::$commandId++;
     $commandId = self::$commandId;
+    self::$commandId++;
     self::$commands[$commandId] = $command;
     // DEBUG:8 echo "MSGSND: main->commander [command]\n";
     Message::send(self::$commanderSocket, [
@@ -43,8 +43,9 @@ class CommanderHandler {
   }
 
   public static function nextCommandId() {
+    $commandId = self::$commandId;
     self::$commandId++;
-    return self::$commandId;
+    return $commandId;
   }
 
   public static function sendInput($cid, $input) {
@@ -52,6 +53,14 @@ class CommanderHandler {
     Message::send(self::$commanderSocket, [
       'cid' => $cid,
       'input' => $input
+    ]);
+  }
+
+  public static function sendSize($cid, $rows, $cols) {
+    // DEBUG:8 echo "MSGSND: main->commander [size]\n";
+    Message::send(self::$commanderSocket, [
+      'cid' => $cid,
+      'size' => "{$rows}x{$cols}"
     ]);
   }
 

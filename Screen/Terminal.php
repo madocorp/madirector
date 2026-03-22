@@ -128,11 +128,13 @@ class Terminal extends Element {
   }
 
   protected function calculateHeights() {
-    $rows = $this->buffer->countVisibleLines();
-    $h = $rows * $this->letterHeight;
-    $this->geometry->height = $this->geometry->borderTop + $this->geometry->paddingTop + $h + $this->geometry->paddingBottom + $this->geometry->borderBottom;
+    if ($this->geometry->height === 'calculated') {
+      $rows = $this->buffer->countVisibleLines();
+      $h = $rows * $this->letterHeight;
+      $this->geometry->height = $this->geometry->borderTop + $this->geometry->paddingTop + $h + $this->geometry->paddingBottom + $this->geometry->borderBottom;
+    }
     $this->geometry->setDerivedHeights();
-    $this->geometry->setContentHeight($this->lineHeight, $this->geometry->borderTop + $this->geometry->paddingTop + $h);
+    $this->geometry->setContentHeight($this->lineHeight, $this->geometry->height - $this->geometry->paddingBottom - $this->geometry->borderBottom);
   }
 
   protected function draw() {
@@ -293,7 +295,7 @@ class Terminal extends Element {
 
   public function keyPressHandler($element, $event) {
     $keycombo = KeyCombo::resolve($event['mod'], $event['scancode'], $event['key']);
-    if ($keycombo === KeyCode::F12) {
+    if ($keycombo === KeyCode::F12 || $keycombo === KeyCode::F11) {
       return false;
     }
     if ($this->inputGrab) {
@@ -329,6 +331,8 @@ class Terminal extends Element {
         return true;
       }
       switch ($keycombo) {
+        case Action::CLOSE:
+          return false;
         case Action::DO_IT:
           return false;
         /* SPACE */
@@ -362,5 +366,12 @@ class Terminal extends Element {
     return true;
   }
 
-}
+  public function getLetterWidth() {
+    return $this->letterWidth;
+  }
 
+  public function getLetterHeight() {
+    return $this->letterHeight;
+  }
+
+}

@@ -40,6 +40,10 @@ class Commander {
             // DEBUG:8 echo "MSGRCV: commander [input]\n";
             $this->sendInput($message);
           }
+          if (isset($message['size'])) {
+            // DEBUG:8 echo "MSGRCV: commander [size]\n";
+            $this->sendSize($message);
+          }
           if (isset($message['command'])) {
             // DEBUG:8 echo "MSGRCV: commander [command: {$message['command']}]\n";
             $this->delegateCommand($message);
@@ -74,6 +78,19 @@ class Commander {
     }
     if ($selectedPty !== false) {
       $selectedPty->sendInput($input['input']);
+    }
+  }
+
+  private function sendSize($size) {
+    $selectedPty = false;
+    foreach ($this->ptys as $pty) {
+      if ($pty->cid === $size['cid']) {
+        $selectedPty = $pty;
+        break;
+      }
+    }
+    if ($selectedPty !== false) {
+      $selectedPty->sendSize($size['size']);
     }
   }
 
