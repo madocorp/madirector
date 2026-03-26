@@ -114,7 +114,10 @@ class Session {
   }
 
   public function endCommand() {
-    if ($this->selected === count($this->commands) - 2) {
+    $command = $this->currentCommand();
+    if ($command->isZoomed()) {
+      $command->toggleScroll(true);
+    } else if ($this->selected === count($this->commands) - 2) {
       $this->nextCommand();
     }
   }
