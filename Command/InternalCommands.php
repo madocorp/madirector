@@ -53,7 +53,7 @@ trait InternalCommands {
         break;
     }
     $cmd = end($this->commands);
-    $cmd->refreshCommandLine();
+    $cmd[0]->refreshCommandLine();
     return true;
   }
 

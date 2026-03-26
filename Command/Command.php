@@ -9,7 +9,7 @@ class Command {
   public $started = false;
   public $done = false;
   public $returnValue = false;
-  public $grab = true;
+  public $grab = false;
   public $scroll = false;
   private $zoom = false;
   public $screenBuffer;
@@ -30,7 +30,7 @@ class Command {
       $this->started = microtime(true);
       $sizes = \MADIR\Screen\Controller::$sizes;
       if (!empty($sizes)) {
-        $this->maxRows = (int)((($sizes['windowHeight'] / $boxSize) - $sizes['verticalOverhead'] - $sizes['verticalGap']*2) / $sizes['letterHeight']);
+        $this->maxRows = (int)((($sizes['windowHeight'] / $boxSize) - $sizes['verticalOverhead'] - $sizes['verticalGap'] * 2) / $sizes['letterHeight']);
         $this->maxCols = (int)((($sizes['windowWidth'] / $boxSize) - $sizes['horizontalOverhead'] - $sizes['horizontalGap']) / $sizes['letterWidth']);
       }
       $this->screenBuffer = new \MADIR\Screen\ScreenBuffer($this->maxRows, $this->maxCols);
@@ -75,9 +75,7 @@ class Command {
 
   public function end($returnValue) {
     $this->returnValue = $returnValue;
-    $this->grab = false;
-    $this->scroll = false;
-    $this->box->removeClass('grab', true);
+    $this->toggleGrab(false);
     $this->terminal->releaseInput();
     $cmd = \SPTK\Element::firstByType('Command', $this->box);
     $cmd->removeClass('run');
@@ -152,9 +150,16 @@ class Command {
       $this->zoom = $zoom;
     }
     if ($this->zoom) {
+      $sizes = \MADIR\Screen\Controller::$sizes;
+      if (empty($sizes)) {
+        $this->zoom = false;
+        return;
+      }
+      $zoomRows = (int)($sizes['windowHeight'] / $sizes['letterHeight']);
+      $zoomCols = (int)($sizes['windowWidth'] / $sizes['letterWidth']);
       $this->terminal->remove();
       $this->terminal->addClass('zoom');
-      $this->setSize($this->zoomRows, $this->zoomCols);
+      $this->setSize($zoomRows, $zoomCols);
     } else {
       $this->box->addDescendant($this->terminal);
       $this->terminal->removeClass('zoom');
@@ -191,7 +196,6 @@ class Command {
     $label->setText('>');
     $input = new \SPTK\Elements\Input($label, false, 'cmd');
     $input->addClass('active', true);
-    $this->setPos(0);
   }
 
   public function refreshCommandLine() {
@@ -221,7 +225,6 @@ class Command {
     $window = \SPTK\Element::firstByType('Window');
     $block = new \SPTK\Element($window, false, false, 'CommandBlock');
     $this->box = $block;
-    $this->box->addClass('grab', true);
     if ($boxSize === 2) {
       $this->box->addClass('half');
     } else if ($boxSize === 3) {
@@ -236,15 +239,10 @@ class Command {
     $this->terminal = new \MADIR\Screen\Terminal($block);
     $this->terminal->setBuffer($this->screenBuffer);
     $this->terminal->setInputCallback([$this, 'input']);
-    $this->terminal->grabInput();
-    $block->addClass('grab', true);
-    $this->setPos(0);
-  }
-
-  public function setPos($y) {
-    $style = $this->box->getStyle();
-    $style->set('y', "-{$y}px");
-    $this->box->recalculateGeometry();
+    if ($boxSize === 1) {
+      $this->toggleGrab(true);
+      $this->box->addClass('grab', true);
+    }
   }
 
   public function raise() {
@@ -252,8 +250,7 @@ class Command {
       $input = \SPTK\Element::firstByType('Input', $this->box);
       $input->raise();
     } else {
-      $terminal = \SPTK\Element::firstByType('Terminal', $this->box);
-      $terminal->raise();
+      $this->terminal->raise();
     }
   }
 

@@ -5,6 +5,8 @@ namespace MADIR\Screen;
 class Controller {
 
   public static $sizes = [];
+  protected static $grabbedBeforeZoom = false;
+  protected static $scrolledBeforeZoom = false;
 
   public static function init() {
     cli_set_process_title('MADIR');
@@ -32,7 +34,7 @@ class Controller {
           if ($command->isGrabbed()) {
             $command->toggleGrab(false);
             $command->toggleScroll(true);
-          } else {
+          } else if ($command->isRunning()) {
             $command->toggleGrab(true);
             $command->toggleScroll(false);
           }
@@ -40,9 +42,11 @@ class Controller {
           $command->toggleZoom(false);
           $command->toggleGrab(false);
           $command->toggleScroll(false);
-        } else {
+        } else if ($command->isGrabbed()) {
+          $command->toggleGrab(false);
+        } else if ($command->isRunning()) {
           $command->toggleScroll(false);
-          $command->toggleGrab();
+          $command->toggleGrab(true);
         }
         self::listCommands();
         \SPTK\Element::refresh();
@@ -53,12 +57,20 @@ class Controller {
         }
         if ($command->isZoomed()) {
           $command->toggleZoom(false);
-          $command->toggleGrab(false);
-          $command->toggleScroll(false);
+          if ($command->isRunning()) {
+            $command->toggleGrab(self::$grabbedBeforeZoom);
+          }
+          $command->toggleScroll(self::$scrolledBeforeZoom);
         } else {
           $command->toggleZoom(true);
-          if (!$command->isScrolled()) {
-            $command->toggleGrab(true);
+          self::$scrolledBeforeZoom = $command->isScrolled();
+          self::$grabbedBeforeZoom = $command->isGrabbed();
+          if (!$command->isScrolled() && !$command->isGrabbed()) {
+            if ($command->isRunning()) {
+              $command->toggleGrab(true);
+            } else {
+              $command->toggleScroll(true);
+            }
           }
         }
         self::listCommands();

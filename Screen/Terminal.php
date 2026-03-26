@@ -103,8 +103,7 @@ class Terminal extends Element {
 
   public function scrollOn() {
     $this->scrollMode = true;
-    $this->cursor->setLines($this->buffer->countLines());
-    $this->cursor->setCols($this->buffer->getCols());
+    $this->cursor->setLines($this->buffer->getLines());
   }
 
   public function scrollOff() {
@@ -116,12 +115,11 @@ class Terminal extends Element {
       return;
     }
     $lines = $this->buffer->countLines();
-    $rows = $this->buffer->getRows();
+    $rows = $this->buffer->getRowCount();
     if ($lines > $rows) {
       $this->scrollOffset = $lines - $rows;
     }
-    $this->cursor->setLines($lines);
-    $this->cursor->setCols($this->buffer->getCols());
+    $this->cursor->setLines($this->buffer->getLines());
     $this->cursor->moveDocEnd();
     $this->cursor->moveLineStart();
     $this->cursor->save();
@@ -140,7 +138,7 @@ class Terminal extends Element {
   protected function draw() {
     $sdl = SDL::$instance->sdl;
     $this->texture = new Texture($this->renderer, $this->geometry->width, $this->geometry->height, [0, 0, 0, 0xff]);
-    $lines = $this->buffer->getLines($this->scrollOffset);
+    $rows = $this->buffer->getRows($this->scrollOffset);
     $cursor = $this->buffer->getCursor();
     $cw = $this->letterWidth;
     $ch = $this->letterHeight;
@@ -149,7 +147,7 @@ class Terminal extends Element {
     if ($this->scrollMode) {
       $this->cursor->toCoordinates($row1, $col1, $row2, $col2);
     }
-    foreach ($lines as $i => $row) {
+    foreach ($rows as $i => $row) {
       foreach ($row as $j => $cell) {
         $glyph = $cell[ScreenBuffer::GLYPH];
         $bgColor = false;
@@ -183,7 +181,7 @@ class Terminal extends Element {
       }
     }
     $previousColor = false;
-    foreach ($lines as $i => $row) {
+    foreach ($rows as $i => $row) {
       foreach ($row as $j => $cell) {
         $glyph = $cell[ScreenBuffer::GLYPH];
         $fgColor = false;
@@ -316,7 +314,7 @@ class Terminal extends Element {
       }
       return true;
     } else if ($this->scrollMode) {
-      $handled = $this->cursor->handleKeys($keycombo, $this->buffer->getRows() - 1, $this->buffer->getCols());
+      $handled = $this->cursor->handleKeys($keycombo, $this->buffer->getRowCount() - 1, $this->buffer->getColCount());
       $this->cursor->save();
       if ($handled) {
         $c = $this->cursor->get();

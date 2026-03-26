@@ -95,6 +95,15 @@ class ANSIParser {
             // DEBUG:9 echo "8 restorCursor";
             $this->screen->restoreCursor(true);
             $this->state = self::GROUND;
+          } elseif ($pu === 'D') {
+            $this->screen->linefeed(false);
+            $this->state = self::GROUND;
+          } elseif ($pu === 'M') {
+            $this->screen->reverseIndex();
+            $this->state = self::GROUND;
+          } elseif ($pu === 'E') {
+            $this->screen->linefeed();
+            $this->state = self::GROUND;
           } else {
             // DEBUG:9 echo "UKNOWN ESCAPE SEQUENCE {$pu}\n";
             $this->state = self::GROUND;
