@@ -450,7 +450,9 @@ class ScreenBuffer {
       $rows = [];
       if ($offset < $l) {
         $lines = array_slice($this->scrollBuffer, $offset, $this->rows);
-        $rows = $this->linesToRows($lines);
+        $runs = array_slice($this->scrollRuns, $offset, $this->rows);
+        $wrap = array_slice($this->scrollWrap, $offset, $this->rows);
+        $rows = $this->linesToRows($lines, $runs, $wrap);
       }
       $n = count($rows);
       $rows2 = [];
@@ -578,28 +580,60 @@ class ScreenBuffer {
     $wrap = [];
     foreach ($rows as $row) {
       $line = '';
+      $run = '';
+      $packedAttr = pack('LLL',$row[0][self::BG], $row[0][self::FG], $row[0][self::ATTR]);
+      $run .= $packedAttr;
+      $length = 0;
+      $wrappable = false;
+      $wrapped = false;
       foreach ($row as $cell) {
         $line .= $cell[self::GLYPH];
+        $packedAttrNext = pack('LLL',$cell[self::BG], $cell[self::FG], $cell[self::ATTR]);
+        if ($packedAttr !== $packedAttrNext) {
+          $run .= pack('L', $length);
+          $run .= $packedAttrNext;
+          $length = 0;
+          $packedAttr = $packedAttrNext;
+        }
+        $length++;
+        if (isset($cell[self::WRAPPABLE])) {
+          $wrappable = true;
+        }
+        if (isset($cell[self::WRAPPED])) {
+          $wrapped = true;
+        }
       }
+      $run .= pack('L', $length);
       $lines[] = rtrim($line, ' ');
-      $runs[] = '';
-      $wrap[] = false;
+      $runs[] = $run;
+      $wrap[] = [$wrappable, $wrapped];
     }
     return [$lines, $runs, $wrap];
   }
 
-  protected function linesToRows($lines) {
+  protected function linesToRows($lines, $runs, $wrap) {
     $rows = [];
-    foreach ($lines as $line) {
+    foreach ($lines as $i => $line) {
       $chars = mb_str_split(mb_str_pad($line, $this->cols));
+      $run = $runs[$i];
+      $runLength = strlen($run);
+      $pOffset = 0;
+      $attr = unpack('Lbg/Lfg/Lattr/Llength', $run, $pOffset);
       $row = [];
       foreach ($chars as $char) {
         $row[] = [
           self::GLYPH => $char,
-          self::BG => 0x000000,
-          self::FG => 0xffffff,
-          self::ATTR =>  0
+          self::BG => $attr['bg'],
+          self::FG => $attr['fg'],
+          self::ATTR => $attr['attr']
         ];
+        $attr['length']--;
+        if ($attr['length'] <= 0) {
+          $pOffset += 16;
+          if ($pOffset < $runLength) {
+            $attr = unpack('Lbg/Lfg/Lattr/Llength', $run, $pOffset);
+          }
+        }
       }
       $rows[] = $row;
     }
