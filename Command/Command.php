@@ -64,9 +64,9 @@ class Command {
     // if current session, on screen, etc ...
     $newHeight = $this->screenBuffer->countVisibleLines();
     if ($newHeight !== $this->height) {
-      \MADIR\Screen\Controller::listCommands();
+      \MADIR\Screen\Controller::heightChanged();
     }
-    \SPTK\Element::refresh(); // refresh only terminal...
+    \MADIR\Screen\Controller::outputHappened();
   }
 
   public function input($stream) {

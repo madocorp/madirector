@@ -8,6 +8,7 @@ class CommanderHandler {
   private static $commands = [];
   private static $commandId = 0;
   private static $pid;
+  private static $lastRefresh = false;
 
   public static function init() {
     new Libc;
@@ -28,6 +29,7 @@ class CommanderHandler {
     self::$commanderSocket = $socket[0];
     Libc::setNonBlocking(self::$commanderSocket);
     cli_set_process_title('MADIR');
+    self::$lastRefresh = microtime(true) * 1000000;
   }
 
   public static function runCommand($command) {
@@ -84,6 +86,11 @@ class CommanderHandler {
           $command->output($message['output']);
         }
       }
+    }
+    $now = microtime(true) * 1000000;
+    if ($now - self::$lastRefresh > 40000) {
+      \MADIR\Screen\Controller::periodicRefresh();
+      self::$lastRefresh = $now;
     }
   }
 
