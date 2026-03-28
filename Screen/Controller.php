@@ -4,12 +4,30 @@ namespace MADIR\Screen;
 
 class Controller {
 
+  const MODE_IDLE = 0;
+  const MODE_ACTIVE = 1;
+  const MODE_INTERACTIVE = 2;
+  const IDLE_TIMEOUT = 250;
+  const ACTIVE_TIMEOUT = 50;
+  const INTERACTIVE_TIMEOUT = 12;
+  const ACTIVE_PERIOD = 500;
+  const INTERACTIVE_PERIOD = 250;
+  const INTERACTIVE_LIMIT = 120;
+  const ACTIVE_LIMIT = 400;
+
   public static $sizes = [];
   protected static $grabbedBeforeZoom = false;
   protected static $scrolledBeforeZoom = false;
+  protected static $heightChanged = false;
+  protected static $outputHappened = false;
+  protected static $lastOutput = 0;
+  protected static $outputMode = self::MODE_IDLE;
+  protected static $activeTill = 0;
+  protected static $interactiveTill = 0;
 
   public static function init() {
     cli_set_process_title('MADIR');
+    \SPTK\SDLWrapper\SDL::$instance->setWaitTime(self::IDLE_TIMEOUT);
     new \MADIR\Command\Session();
     self::measureSize();
     self::ListCommands();
@@ -219,6 +237,52 @@ class Controller {
     self::$sizes['windowWidth'] = $wgeometry->innerWidth;
     self::$sizes['letterHeight'] = $letterHeight;
     self::$sizes['letterWidth'] = $letterWidth;
+  }
+
+  public static function heightChanged() {
+    self::$heightChanged = true;
+  }
+
+  public static function outputHappened() {
+    self::$outputHappened = true;
+    $now = microtime(true) * 1000;
+    $delta = $now - self::$lastOutput;
+    if ($delta < self::INTERACTIVE_LIMIT) {
+      if (self::$outputMode !== self::MODE_INTERACTIVE) {
+        self::$outputMode = self::MODE_INTERACTIVE;
+        \SPTK\SDLWrapper\SDL::$instance->setWaitTime(self::INTERACTIVE_TIMEOUT);
+      }
+      self::$interactiveTill = $now + self::INTERACTIVE_PERIOD;
+      self::$activeTill = $now + self::ACTIVE_PERIOD;
+    } else if ($delta < self::ACTIVE_LIMIT) {
+      if (self::$outputMode === self::MODE_IDLE) {
+        \SPTK\SDLWrapper\SDL::$instance->setWaitTime(self::ACTIVE_TIMEOUT);
+        self::$outputMode = self::MODE_ACTIVE;
+      }
+      self::$activeTill = $now + self::ACTIVE_PERIOD;
+    }
+    self::$lastOutput = $now;
+
+  }
+
+  public static function periodicRefresh() {
+    if (self::$heightChanged) {
+      self::listCommands();
+      \SPTK\Element::refresh();
+    } else if (self::$outputHappened > 0) {
+      \SPTK\Element::refresh();
+    }
+    self::$heightChanged = false;
+    self::$outputHappened = false;
+    $now = microtime(true) * 1000;
+    if (self::$outputMode === self::MODE_INTERACTIVE && $now > self::$interactiveTill) {
+      self::$outputMode = self::MODE_ACTIVE;
+      \SPTK\SDLWrapper\SDL::$instance->setWaitTime(self::ACTIVE_TIMEOUT);
+    }
+    if (self::$outputMode === self::MODE_ACTIVE && $now > self::$activeTill) {
+      self::$outputMode = self::MODE_IDLE;
+      \SPTK\SDLWrapper\SDL::$instance->setWaitTime(self::IDLE_TIMEOUT);
+    }
   }
 
 }

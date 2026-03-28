@@ -12,10 +12,13 @@ class ScreenBuffer {
   const WRAPPABLE = 5;
   const WRAPPED = 6;
   const A_BOLD = 1;
+  const A_REVERSE = 2;
 
   protected $mainScreen;
   protected $altScreen;
+  protected $previousScreen = false;
   protected $currentScreen;
+  protected $altScreenActive;
   protected $scrollBuffer = [];
   protected $scrollRuns = [];
   protected $scrollWrap = [];
@@ -37,6 +40,7 @@ class ScreenBuffer {
   protected $mainHeight = 1;
   protected $fill = false;
   protected $pendingWrap = false;
+  protected $lastChar = false;
 
   public function __construct($rows, $cols) {
     $this->rows = $rows;
@@ -47,8 +51,10 @@ class ScreenBuffer {
     $this->scrollRegionStart = 0;
     $this->scrollRegionEnd = $this->rows - 1;
     $this->currentScreen = &$this->altScreen;
+    $this->altScreenActive = true;
     $this->initScreen();
     $this->currentScreen = &$this->mainScreen;
+    $this->altScreenActive = false;
     $this->initScreen();
   }
 
@@ -90,8 +96,10 @@ class ScreenBuffer {
     ];
     if ($buffer === 0) {
       $this->currentScreen = &$this->mainScreen;
+      $this->altScreenActive = false;
     } else {
       $this->currentScreen = &$this->altScreen;
+      $this->altScreenActive = true;
     }
     if ($this->otherScreenState !== false) {
       $this->setRow($this->otherScreenState['row']);
@@ -123,13 +131,23 @@ class ScreenBuffer {
     } else {
       $this->col++;
     }
+    $this->lastChar = $chr;
+  }
+
+  public function repeatChar($n) {
+    if ($this->lastChar === false) {
+      return;
+    }
+    for ($i = 0; $i < $n; $i++) {
+      $this->putChar($this->lastChar);
+    }
   }
 
   public function lineFeed($cr = true) {
     if ($this->row < $this->scrollRegionEnd) {
       $this->setRow($this->row + 1);
     } else if ($this->row == $this->scrollRegionEnd) {
-      if ($this->currentScreen === $this->mainScreen && $this->scrollRegionStart === 0 && $this->scrollRegionEnd === $this->rows - 1) {
+      if (!$this->altScreenActive && $this->scrollRegionStart === 0 && $this->scrollRegionEnd === $this->rows - 1) {
         $this->pushToScrollBuffer($this->currentScreen[$this->scrollRegionStart]);
       }
       $this->scrollUp(1);
@@ -181,6 +199,18 @@ class ScreenBuffer {
 
   public function isBold() {
     return ($this->attrs & self::A_BOLD) > 0;
+  }
+
+  public function setReverse($reverse) {
+    if ($reverse) {
+      $this->attrs = $this->attrs | self::A_REVERSE;
+    } else {
+      $this->attrs = $this->attrs & ~self::A_REVERSE;
+    }
+  }
+
+  public function isReverse() {
+    return ($this->attrs & self::A_REVERSE) > 0;
   }
 
   public function cursorUp($n) {
@@ -442,7 +472,7 @@ class ScreenBuffer {
   }
 
   public function getRows($offset = false) {
-    if ($this->currentScreen === $this->mainScreen) {
+    if (!$this->altScreenActive) {
       $l = count($this->scrollBuffer);
       if ($offset === false) {
         $offset = $l;
@@ -475,7 +505,7 @@ class ScreenBuffer {
   }
 
   public function getLines() {
-    if ($this->currentScreen === $this->mainScreen) {
+    if (!$this->altScreenActive) {
       [$lines, $runs, $wrap] = $this->rowsToLines($this->currentScreen);
       $lines = array_merge($this->scrollBuffer, $lines);
       if ($this->fill) {
@@ -494,14 +524,14 @@ class ScreenBuffer {
   }
 
   public function countVisibleLines() {
-    if (!$this->fill && $this->currentScreen === $this->mainScreen) {
+    if (!$this->fill && !$this->altScreenActive) {
       return min($this->rows, $this->mainHeight);
     }
     return $this->rows;
   }
 
   public function countLines() {
-    if ($this->currentScreen === $this->mainScreen) {
+    if (!$this->altScreenActive) {
       return $this->mainHeight + count($this->scrollBuffer);
     }
     return $this->rows;
@@ -537,7 +567,7 @@ class ScreenBuffer {
   public function setRow($row) {
     $this->pendingWrap = false;
     $this->row = $row;
-    if ($this->currentScreen === $this->mainScreen) {
+    if (!$this->altScreenActive) {
       $this->mainHeight = max($row + 1, $this->mainHeight);
     }
   }
@@ -638,6 +668,31 @@ class ScreenBuffer {
       $rows[] = $row;
     }
     return $rows;
+  }
+
+  public function saveScreen() {
+    $this->previousScreen = $this->currentScreen;
+  }
+
+  public function cellChanged($i, $j) {
+    if ($this->previousScreen === false) {
+      return true;
+    }
+    $a = $this->altScreen[$i][$j];
+    $b = $this->previousScreen[$i][$j];
+    if ($a[self::GLYPH] != $b[self::GLYPH]) {
+      return true;
+    }
+    if ($a[self::BG] != $b[self::BG]) {
+      return true;
+    }
+    if ($a[self::FG] != $b[self::FG]) {
+      return true;
+    }
+    if ($a[self::ATTR] != $b[self::ATTR]) {
+      return true;
+    }
+    return false;
   }
 
 }

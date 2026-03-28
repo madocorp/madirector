@@ -222,12 +222,16 @@ class ANSIParser {
             $this->screen->setForeground($this->colors[7]);
             $this->screen->setBackground($this->colors[0]);
             $this->screen->setBold(false);
+            $this->screen->setReverse(false);
           }
           if ($param == 1) {
             $this->screen->setBold(true);
           }
           if ($param == 7) {
-            // reverse
+            $this->screen->setReverse(true);
+          }
+          if ($param == 27) {
+            $this->screen->setReverse(false);
           }
           if ($param >= 30 && $param <= 37) {
             if ($this->screen->isBold()) {
@@ -293,6 +297,9 @@ class ANSIParser {
       case 'H':
       case 'f':
         $this->screen->cursorPos($params[0] ?? 1, $params[1] ?? 1);
+        break;
+      case 'b':
+        $this->screen->repeatChar($params[0] ?? 1);
         break;
       case 'J':
         $this->screen->eraseDisplay($params[0] ?? 0);

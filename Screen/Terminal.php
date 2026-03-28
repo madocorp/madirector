@@ -39,6 +39,8 @@ class Terminal extends Element {
   protected $scrollMode = false;
   protected $scrollOffset = 0;
   protected $cursor;
+  protected $textureWidth;
+  protected $textureHeight;
 
   public function init() {
     $this->acceptInput = true;
@@ -137,7 +139,16 @@ class Terminal extends Element {
 
   protected function draw() {
     $sdl = SDL::$instance->sdl;
-    $this->texture = new Texture($this->renderer, $this->geometry->width, $this->geometry->height, [0, 0, 0, 0xff]);
+    if (
+      $this->texture === false ||
+      $this->textureWidth !== $this->geometry->width ||
+      $this->textureHeight !== $this->geometry->height
+    ) {
+      $this->texture = new Texture($this->renderer, $this->geometry->width, $this->geometry->height, [0, 0, 0, 0xff]);
+      $this->textureWidth = $this->geometry->width;
+      $this->textureHeight = $this->geometry->height;
+    }
+    $this->texture->activate();
     $rows = $this->buffer->getRows($this->scrollOffset);
     $cursor = $this->buffer->getCursor();
     $cw = $this->letterWidth;
@@ -149,7 +160,12 @@ class Terminal extends Element {
     }
     foreach ($rows as $i => $row) {
       foreach ($row as $j => $cell) {
+        if (!$this->buffer->cellChanged($i, $j)) {
+          continue;
+        }
         $glyph = $cell[ScreenBuffer::GLYPH];
+        $attr = $cell[ScreenBuffer::ATTR];
+        $reversed = ($attr & ScreenBuffer::A_REVERSE) > 0;
         $bgColor = false;
         if ($this->scrollMode) {
           $beforeStart = ($i + $this->scrollOffset < $row1) || ($i + $this->scrollOffset == $row1 && $j < $col1);
@@ -160,9 +176,9 @@ class Terminal extends Element {
         }
         if ($bgColor === false) {
           if ($cursor !== false && $i == $cursor[0] && $j == $cursor[1]) {
-            $bgColor = $cell[ScreenBuffer::FG];
+            $bgColor = $cell[$reversed ? ScreenBuffer::BG : ScreenBuffer::FG];
           } else {
-            $bgColor = $cell[ScreenBuffer::BG];
+            $bgColor = $cell[$reversed ? ScreenBuffer::FG : ScreenBuffer::BG];
           }
         }
         self::$sdlFRect2->x = (float)($j * $cw + $this->geometry->paddingLeft + $this->geometry->borderLeft);
@@ -183,7 +199,12 @@ class Terminal extends Element {
     $previousColor = false;
     foreach ($rows as $i => $row) {
       foreach ($row as $j => $cell) {
+        if (!$this->buffer->cellChanged($i, $j)) {
+          continue;
+        }
         $glyph = $cell[ScreenBuffer::GLYPH];
+        $attr = $cell[ScreenBuffer::ATTR];
+        $reversed = ($attr & ScreenBuffer::A_REVERSE) > 0;
         $fgColor = false;
         if ($this->scrollMode) {
           $beforeStart = ($i + $this->scrollOffset < $row1) || ($i + $this->scrollOffset == $row1 && $j < $col1);
@@ -194,9 +215,9 @@ class Terminal extends Element {
         }
         if ($fgColor === false) {
           if ($cursor !== false && $i == $cursor[0] && $j == $cursor[1]) {
-            $fgColor = $cell[ScreenBuffer::BG];
+            $fgColor = $cell[$reversed ? ScreenBuffer::FG : ScreenBuffer::BG];
           } else {
-            $fgColor = $cell[ScreenBuffer::FG];
+            $fgColor = $cell[$reversed ? ScreenBuffer::BG : ScreenBuffer::FG];
           }
         }
         if ($glyph === ' ') {
@@ -226,6 +247,7 @@ class Terminal extends Element {
         $sdl->SDL_RenderTexture($this->renderer, self::$atlas, self::$sdlFRect1Addr, self::$sdlFRect2Addr);
       }
     }
+    $this->buffer->saveScreen();
   }
 
   protected function renderGlyph($glyph) {
