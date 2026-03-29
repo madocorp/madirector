@@ -160,7 +160,7 @@ class Terminal extends Element {
     }
     foreach ($rows as $i => $row) {
       foreach ($row as $j => $cell) {
-        if (!$this->buffer->cellChanged($i, $j)) {
+        if (!$this->scrollMode && !$this->buffer->cellChanged($i, $j)) {
           continue;
         }
         $glyph = $cell[ScreenBuffer::GLYPH];
@@ -199,7 +199,7 @@ class Terminal extends Element {
     $previousColor = false;
     foreach ($rows as $i => $row) {
       foreach ($row as $j => $cell) {
-        if (!$this->buffer->cellChanged($i, $j)) {
+        if (!$this->scrollMode && !$this->buffer->cellChanged($i, $j)) {
           continue;
         }
         $glyph = $cell[ScreenBuffer::GLYPH];
@@ -309,10 +309,6 @@ class Terminal extends Element {
     return $this->texture;
   }
 
-  protected function getSelection() {
-    return "TODO";
-  }
-
   public function keyPressHandler($element, $event) {
     $keycombo = KeyCombo::resolve($event['mod'], $event['scancode'], $event['key']);
     if ($keycombo === KeyCode::F12 || $keycombo === KeyCode::F11) {
@@ -361,15 +357,17 @@ class Terminal extends Element {
         /* MOVE and SELECT*/
         /* COPY */
         case Action::COPY:
-          \SPTK\Clipboard::set($this->getSelection());
+          \SPTK\Clipboard::set($this->cursor->getSelection());
           $this->cursor->resetSelection();
-          break;
+          $this->cursor->save();
+          Element::refresh();
+          return true;
         case Action::PASTE:
           $paste = \SPTK\Clipboard::get();
           if ($paste !== false) {
             call_user_func($this->inputCallback, $paster);
           }
-          break;
+          return true;
         default:
           return true;
       }

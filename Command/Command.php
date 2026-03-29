@@ -20,6 +20,7 @@ class Command {
   private $value = '';
   private $maxRows = 25;
   private $maxCols = 80;
+  private $workingDirectory;
 
   public function __construct($command, $session, $internal, $boxSize = 1) {
     $this->command = $command;
@@ -31,7 +32,7 @@ class Command {
       $sizes = \MADIR\Screen\Controller::$sizes;
       if (!empty($sizes)) {
         $this->maxRows = (int)((($sizes['windowHeight'] / $boxSize) - $sizes['verticalOverhead'] - $sizes['verticalGap'] * 2) / $sizes['letterHeight']);
-        $this->maxCols = (int)((($sizes['windowWidth'] / $boxSize) - $sizes['horizontalOverhead'] - $sizes['horizontalGap']) / $sizes['letterWidth']);
+        $this->maxCols = (int)((($sizes['windowWidth'] / $boxSize) - $sizes['horizontalOverhead'] - $sizes['horizontalGap']) / $sizes['letterWidth']) - 1;
       }
       $this->screenBuffer = new \MADIR\Screen\ScreenBuffer($this->maxRows, $this->maxCols);
       if ($internal) {
@@ -48,10 +49,11 @@ class Command {
   }
 
   public function getCommandMessage() {
+    $this->workingDirectory = $this->session->cwd();
     return json_encode([
       'rows' => $this->maxRows,
       'cols' => $this->maxCols,
-      'wd' => $this->session->cwd(),
+      'wd' => $this->workingDirectory,
       'env' => $this->session->getenv(),
       'sequence' => $this->command['sequence'],
       'commandString' => $this->command['commandString']
@@ -137,9 +139,11 @@ class Command {
     if ($this->scroll) {
       $this->terminal->scrollOn();
       $this->box->addClass('scroll', true);
+      $this->screenBuffer->invalidateScreen();
     } else {
       $this->terminal->scrollOff();
       $this->box->removeClass('scroll', true);
+      $this->screenBuffer->invalidateScreen();
     }
   }
 
@@ -160,6 +164,7 @@ class Command {
       $this->terminal->remove();
       $this->terminal->addClass('zoom');
       $this->setSize($zoomRows, $zoomCols);
+      $this->screenBuffer->invalidateScreen();
     } else {
       $this->box->addDescendant($this->terminal);
       $this->terminal->removeClass('zoom');
@@ -271,6 +276,19 @@ class Command {
 
   public function getCid() {
     return $this->cid;
+  }
+
+  public function getCommandString($withOutput) {
+    if (isset($this->workingDirectory)) {
+      $command = $this->workingDirectory . '> '. $this->command['commandString'];
+      if ($withOutput) {
+        $output = $this->screenBuffer->getLines();
+        $command .= "\n";
+        $command .= implode("\n", $output);
+      }
+      return $command;
+    }
+    return '';
   }
 
 }
