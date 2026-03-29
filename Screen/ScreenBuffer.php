@@ -17,6 +17,7 @@ class ScreenBuffer {
   protected $mainScreen;
   protected $altScreen;
   protected $previousScreen = false;
+  protected $previousCursor = false;
   protected $currentScreen;
   protected $altScreenActive;
   protected $scrollBuffer = [];
@@ -51,10 +52,8 @@ class ScreenBuffer {
     $this->scrollRegionStart = 0;
     $this->scrollRegionEnd = $this->rows - 1;
     $this->currentScreen = &$this->altScreen;
-    $this->altScreenActive = true;
     $this->initScreen();
     $this->currentScreen = &$this->mainScreen;
-    $this->altScreenActive = false;
     $this->initScreen();
   }
 
@@ -506,16 +505,9 @@ class ScreenBuffer {
 
   public function getLines() {
     if (!$this->altScreenActive) {
-      [$lines, $runs, $wrap] = $this->rowsToLines($this->currentScreen);
+      $rows = array_slice($this->currentScreen, 0, $this->mainHeight);
+      [$lines, $runs, $wrap] = $this->rowsToLines($rows);
       $lines = array_merge($this->scrollBuffer, $lines);
-      if ($this->fill) {
-        $n = count($lines);
-        if ($n < $this->rows) {
-          for ($i = 0; $i < $this->rows - $n; $i++) {
-            $lines[] = '';
-          }
-        }
-      }
       return $lines;
     } else {
       [$lines, $runs, $wrap] = $this->rowsToLines($this->currentScreen);
@@ -586,6 +578,10 @@ class ScreenBuffer {
   public function setSize($rows, $cols) {
     $this->rows = $rows;
     $this->cols = $cols;
+    $currentScreen = &$this->currentScreen;
+    $this->currentScreen = &$this->altScreen;
+    $this->initScreen();
+    $this->currentScreen = &$currentScreen;
   }
 
 
@@ -672,10 +668,29 @@ class ScreenBuffer {
 
   public function saveScreen() {
     $this->previousScreen = $this->currentScreen;
+    $this->previousCursor = [$this->row, $this->col];
+  }
+
+  public function invalidateScreen() {
+    $this->previousScreen = false;
+    $this->previousCursor = false;
+  }
+
+  public function screenIsInvalid() {
+    return $this->previousScreen === false;
   }
 
   public function cellChanged($i, $j) {
     if ($this->previousScreen === false) {
+      return true;
+    }
+    if ($i === $this->row && $j === $this->col) {
+      return true;
+    }
+    if ($i === $this->previousCursor[0] && $j === $this->previousCursor[1]) {
+      return true;
+    }
+    if (!isset($this->altScreen[$i][$j]) || !isset($this->previousScreen[$i][$j])) {
       return true;
     }
     $a = $this->altScreen[$i][$j];
