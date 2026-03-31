@@ -38,6 +38,7 @@ int close(int fd);
 int clearenv(void);
 int setenv(const char *name, const char *value, int overwrite);
 int execvp(const char *file, char *const argv[]);
+void perror(const char *s);
 int fcntl(int fd, int cmd, ...);
 pid_t setsid(void);
 int poll(struct pollfd *fds, nfds_t nfds, int timeout);
@@ -55,4 +56,3 @@ int setpgid(pid_t pid, pid_t pgid);
 pid_t getpgrp(void);
 int tcsetpgrp(int fd, pid_t pgrp);
 pid_t tcgetpgrp(int fd);
-

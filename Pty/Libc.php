@@ -107,6 +107,7 @@ class Libc {
     $libc->execvp($argv[0], $argv);
     $errno = self::errno();
     fprintf(STDERR, "execvp failed: %s errno=%d\n", $argvp[0] ?? "?", $errno);
+    echo $libc->perror(null);
   }
 
   public static function setNonBlocking($fd) {
