@@ -94,7 +94,7 @@ class Session {
       self::selectSession(-1, true);
     }
     if ($id === self::$current) {
-      return "You can't delete the last session.";
+      return "You can't delete the last session.\n";
     }
     unset(self::$sessions[$id]);
     return self::getSessionList();

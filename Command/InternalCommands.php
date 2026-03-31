@@ -164,7 +164,7 @@ trait InternalCommands {
     } else if (strpos($command, 'session -d') === 0) {
       $id = trim(substr($command, 10));
       if ($id === '') {
-        $id = null;
+        return "Specify a sessionId!\n";
       } else {
         $id = (int)$id;
       }
