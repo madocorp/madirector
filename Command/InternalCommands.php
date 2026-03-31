@@ -145,7 +145,46 @@ trait InternalCommands {
   }
 
   private function session($command) {
-
+    if ($command === 'session') {
+      $help = "";
+      $help .= "\e[1;37m\"session\" is an internal command used to manage sessions.\e[0m\n";
+      $help .= "Each session has an ID and may have a name.\n";
+      $help .= "If a session does not exist, it will be created.\n";
+      $help .= "The short form of this command is \e[1;37m\"s\"\e[0m. You can also switch sessions  by typing the session ID without using the command.\n";
+      $help .= "  \e[1;37msession          \e[0mShow this help message.\n";
+      $help .= "  \e[1;37msession -l       \e[0mList all sessions.\n";
+      $help .= "  \e[1;37msession -n name  \e[0mSet a name for the current session.\n";
+      $help .= "  \e[1;37msession ID|name  \e[0mSwitch to the specified session.\n";
+      $help .= "  \e[1;37msession -d ID    \e[0mDelete the specified session.\n";
+      $help .= "  \e[1;37msession -c       \e[0mClear the session screen (remove all completed commands).\n";
+      return $help;
+    }
+    if ($command === 'session -l') {
+      return Session::getSessionList();
+    } else if (strpos($command, 'session -d') === 0) {
+      $id = trim(substr($command, 10));
+      if ($id === '') {
+        $id = null;
+      } else {
+        $id = (int)$id;
+      }
+      return Session::delete($id);
+    } else if (strpos($command, 'session -n') === 0) {
+      $name = trim(substr($command, 10));
+      Session::getCurrent()->setName($name);
+      return Session::getSessionList();
+    } else if (strpos($command, 'session -c') === 0) {
+      Session::getCurrent()->clear();
+      return true;
+    } else {
+      $id = trim(substr($command, 7));
+      if (!ctype_digit($id)) {
+        Session::selectSessionByName($id);
+      } else {
+        Session::selectSession($id, false);
+      }
+      return true;
+    }
   }
 
   private function variable($command) {

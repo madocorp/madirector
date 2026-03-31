@@ -174,7 +174,7 @@ class Command {
 
   public function getStatusString() {
     $status = '';
-    $status .= "[{$this->cid}] ";
+    $status .= "[" . $this->screenBuffer->countLines() . "] ";
     $dt = new \DateTime;
     $dt->setTimestamp($this->started);
     $status .= $dt->format('Y-m-d H:i:s') . ' ';
@@ -195,7 +195,7 @@ class Command {
     $block = new \SPTK\Element($window, 'newCommand', false, 'CommandBlock');
     $this->box = $block;
     $info = new \SPTK\Element($block, false, false, 'CommandInfo');
-    $info->setText(rtrim($this->session->cwd(), '/') . '/');
+    $info->setText($this->session->id() . ': ' . rtrim($this->session->cwd(), '/') . '/');
     $cmd = new \SPTK\Element($block, false, 'new', 'Command');
     $label = new \SPTK\Element($cmd, false, 'prompt', 'Label');
     $label->setText('>');
@@ -236,7 +236,7 @@ class Command {
       $this->box->addClass('third');
     }
     $info = new \SPTK\Element($block, false, false, 'CommandInfo');
-    $info->setText(rtrim($this->session->cwd(), '/') . '/');
+    $info->setText($this->session->id() . '/' . $this->cid .  ': ' . rtrim($this->session->cwd(), '/') . '/');
     $status = new \SPTK\Element($info, false, false, 'CommandStatus');
     $status->setText($this->getStatusString());
     $cmd = new \SPTK\Element($block, false, 'run', 'Command');
@@ -279,7 +279,7 @@ class Command {
   }
 
   public function getCommandString($withOutput) {
-    if (isset($this->workingDirectory)) {
+    if ($this->command !== false) {
       $command = $this->workingDirectory . '> '. $this->command['commandString'];
       if ($withOutput) {
         $output = $this->screenBuffer->getLines();
