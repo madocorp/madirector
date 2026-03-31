@@ -28,7 +28,7 @@ class Controller {
   public static function init() {
     cli_set_process_title('MADIR');
     \SPTK\SDLWrapper\SDL::$instance->setWaitTime(self::IDLE_TIMEOUT);
-    new \MADIR\Command\Session();
+    new \MADIR\Command\Session(0);
     self::measureSize();
     self::ListCommands();
   }
@@ -161,11 +161,20 @@ class Controller {
         } else {
           if (!$command->isZoomed() && !$command->isScrolled()) {
             $session->deleteCommand($command->getCid());
-            $session->nextCommand();
             self::listCommands();
             \SPTK\Element::refresh();
           }
         }
+        return true;
+      case \SPTK\SDLWrapper\Action::SWITCH_LEFT:
+        \MADIR\Command\Session::selectSession(-1, true);
+        self::listCommands();
+        \SPTK\Element::refresh();
+        return true;
+      case \SPTK\SDLWrapper\Action::SWITCH_RIGHT:
+        \MADIR\Command\Session::selectSession(1, true);
+        self::listCommands();
+        \SPTK\Element::refresh();
         return true;
     }
   }
