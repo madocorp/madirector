@@ -195,7 +195,7 @@ class Command {
     $block = new \SPTK\Element($window, 'newCommand', false, 'CommandBlock');
     $this->box = $block;
     $info = new \SPTK\Element($block, false, false, 'CommandInfo');
-    $info->setText($this->session->id() . ': ' . rtrim($this->session->cwd(), '/') . '/');
+    $this->refreshCommandLine();
     $cmd = new \SPTK\Element($block, false, 'new', 'Command');
     $label = new \SPTK\Element($cmd, false, 'prompt', 'Label');
     $label->setText('>');
@@ -205,7 +205,10 @@ class Command {
 
   public function refreshCommandLine() {
     $info = \SPTK\Element::firstByType('CommandInfo', $this->box);
-    $info->setText(rtrim($this->session->cwd(), '/') . '/');
+    $session = Session::$current . ($this->cid ? '/' . $this->cid  : '') . ': ';
+    $cwd = rtrim($this->session->cwd(), '/') . '/';
+    $git = $this->session->git() ? ' [' . $this->session->git() . ']' : '';
+    $info->setText($session . $cwd . $git);
   }
 
   public function setValue($value) {
@@ -216,6 +219,18 @@ class Command {
   public function getValue() {
     $cmd = \SPTK\Element::firstByType('Input', $this->box);
     return $cmd->getValue();
+  }
+
+  public function getValueTillCursor() {
+    $cmd = \SPTK\Element::firstByType('Input', $this->box);
+    $cursorPos = $cmd->getCursorPos();
+    $value = substr($cmd->getValue(), 0, $cursorPos);
+    return $value;
+  }
+
+  public function getCursorPos() {
+    $cmd = \SPTK\Element::firstByType('Input', $this->box);
+    return $cmd->getCursorPos();
   }
 
   public function saveValue() {
@@ -236,7 +251,7 @@ class Command {
       $this->box->addClass('third');
     }
     $info = new \SPTK\Element($block, false, false, 'CommandInfo');
-    $info->setText($this->session->id() . '/' . $this->cid .  ': ' . rtrim($this->session->cwd(), '/') . '/');
+    $this->refreshCommandLine();
     $status = new \SPTK\Element($info, false, false, 'CommandStatus');
     $status->setText($this->getStatusString());
     $cmd = new \SPTK\Element($block, false, 'run', 'Command');

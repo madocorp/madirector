@@ -105,6 +105,7 @@ class Session {
   public $selected;
   protected $cwd;
   protected $pwd;
+  protected $git;
   protected $history = 1;
   protected $env;
   public $vars = [];
@@ -198,7 +199,7 @@ class Session {
   public function moveGroupCursor($h, $v) {
     $n = count($this->commands[$this->selected]);
     if (!isset($this->groupCursor[$this->selected])) {
-      return;
+      return false;
     }
     $groupCursor = $this->groupCursor[$this->selected];
     if ($n > 4) {
@@ -206,16 +207,19 @@ class Session {
     } else if ($n > 1) {
       $columns = 2;
     } else {
-      return;
+      return false;
     }
     $groupCursor += $h + $v * $columns;
     if ($groupCursor < 0) {
-      $groupCursor = 0;
+      return false;
+//      $groupCursor = 0;
     }
     if ($groupCursor > $n - 1) {
-      $groupCursor = $n - 1;
+      return false;
+//      $groupCursor = $n - 1;
     }
     $this->groupCursor[$this->selected] = $groupCursor;
+    return true;
   }
 
   public function previousCommand() {
@@ -275,6 +279,10 @@ class Session {
 
   public function cwd() {
     return $this->cwd;
+  }
+
+  public function git() {
+    return $this->git;
   }
 
   public function history($step) {
@@ -353,6 +361,15 @@ class Session {
     }
     // exit: close session
     return false;
+  }
+
+  protected function setGit() {
+    exec("git -C {$this->cwd} branch --show-current 2>&1", $output, $res);
+    if ($res === 0) {
+      $this->git = $output[0];
+    } else {
+      $this->git = false;
+    }
   }
 
 }

@@ -95,7 +95,7 @@ class CommanderHandler {
   }
 
   public static function childEnd() {
-    $pid = pcntl_waitpid(-1, $status);
+    $pid = pcntl_wait($status, WNOHANG);
     if ($pid === self::$pid) {
       echo "Commander exited: {$status}\n";
       exit(1);

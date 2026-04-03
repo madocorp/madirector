@@ -344,7 +344,7 @@ class ANSIParser {
         if ($params[0] == '?25') {
           $this->screen->cursor(true);
         }
-        if ($params[0] == '?1049') {
+        if ($params[0] == '?47' || $params[0] == '?1047' || $params[0] == '?1049') {
           $this->screen->setCurrentBuffer(1);
         }
         break;
@@ -355,7 +355,7 @@ class ANSIParser {
         if ($params[0] == '?25') {
           $this->screen->cursor(false);
         }
-        if ($params[0] == '?1049') {
+        if ($params[0] == '?47' || $params[0] == '?1047' || $params[0] == '?1049') {
           $this->screen->setCurrentBuffer(0);
         }
         break;
