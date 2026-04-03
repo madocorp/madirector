@@ -40,8 +40,11 @@ class Controller {
       case \SPTK\SDLWrapper\Action::CLOSE:
         if ($command->isScrolled()) {
           $command->toggleScroll(false);
+          self::listCommands();
         }
-        self::listCommands();
+        if ($command->isNew()) {
+          \MADIR\Completion\Engine::hideWindow();
+        }
         \SPTK\Element::refresh();
         return true;
       case \SPTK\SDLWrapper\KeyCode::F12:
@@ -96,8 +99,10 @@ class Controller {
         return true;
       case \SPTK\SDLWrapper\Action::DO_IT:
         if ($command->isNew()) {
-          self::runCommand($command);
-          self::listCommands();
+          if (!\MADIR\Completion\Engine::replace($command)) {
+            self::runCommand($command);
+            self::listCommands();
+          }
           \SPTK\Element::refresh();
           return true;
         }
@@ -116,37 +121,51 @@ class Controller {
         \SPTK\Element::refresh();
         return true;
       case \SPTK\SDLWrapper\Action::MOVE_UP:
-        if ($command->isNew()) {
-          $session->history(1);
-        } else {
-          $session->moveGroupCursor(0, -1);
-          self::listCommands();
+        if (!$session->moveGroupCursor(0, -1)) {
+          $session->previousCommand();
         }
+        self::listCommands();
         \SPTK\Element::refresh();
         return true;
       case \SPTK\SDLWrapper\Action::MOVE_DOWN:
-        if ($command->isNew()) {
-          $session->history(-1);
-        } else {
-          $session->moveGroupCursor(0, 1);
-          self::listCommands();
+        if (!$session->moveGroupCursor(0, 1)) {
+          $session->nextCommand();
         }
+        self::listCommands();
         \SPTK\Element::refresh();
         return true;
       case \SPTK\SDLWrapper\Action::MOVE_LEFT:
         if ($command->isNew()) {
-          return false;
+          if (!\MADIR\Completion\Engine::selectGroup(-1)) {
+            return false;
+          }
+        } else {
+          $session->moveGroupCursor(-1, 0);
+          self::listCommands();
         }
-        $session->moveGroupCursor(-1, 0);
-        self::listCommands();
         \SPTK\Element::refresh();
         return true;
       case \SPTK\SDLWrapper\Action::MOVE_RIGHT:
         if ($command->isNew()) {
-          return false;
+          if (!\MADIR\Completion\Engine::selectGroup(1)) {
+            return false;
+          }
+        } else {
+          $session->moveGroupCursor(1, 0);
+          self::listCommands();
         }
-        $session->moveGroupCursor(1, 0);
-        self::listCommands();
+        \SPTK\Element::refresh();
+        return true;
+      case \SPTK\SDLWrapper\Action::SELECT_UP:
+        if ($command->isNew()) {
+          $session->history(1);
+        }
+        \SPTK\Element::refresh();
+        return true;
+      case \SPTK\SDLWrapper\Action::SELECT_DOWN:
+        if ($command->isNew()) {
+          $session->history(-1);
+        }
         \SPTK\Element::refresh();
         return true;
       case \SPTK\SDLWrapper\Action::COPY:
@@ -176,6 +195,12 @@ class Controller {
         self::listCommands();
         \SPTK\Element::refresh();
         return true;
+      case \SPTK\SDLWrapper\Action::SWITCH_NEXT:
+        if ($command->isNew()) {
+          \MADIR\Completion\Engine::complete($command);
+          \SPTK\Element::refresh();
+        }
+        return true;
     }
   }
 
@@ -191,7 +216,7 @@ class Controller {
 
   public static function runCommand($command) {
     $commandString = $command->getValue();
-    $session = \MADIR\Command\Session::getCurrent();
+    $session = $command->session;
     $parser = new \MADIR\Command\CommandParser($session);
     $parsedCommands = $parser->parse($commandString);
     $command->setValue('');
@@ -204,6 +229,7 @@ class Controller {
   }
 
   public static function listCommands() {
+    \MADIR\Completion\Engine::hideWindow();
     $window = \SPTK\Element::firstByType('Window');
     $window->clear();
     $wgeometry = $window->getGeometry();

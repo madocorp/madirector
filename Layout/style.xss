@@ -111,3 +111,25 @@ Terminal {
   paddingLeft: 5px;
 }
 
+CompletionWindow {
+  position: absolute;
+  x: -0.45%w;
+  y: -0.45%w;
+  minHeight: 20px;
+  backgroundColor: #cccccc;
+  border: 3px;
+  borderColor: #555555;
+  padding: 10px, 5px;
+  color: #000000;
+}
+
+ListBoxContainer {
+  width: 210px;
+  padding: 0px, 5px;
+}
+
+ListBox {
+  width: 200px;
+  height: content;
+  maxHeight: 200px;
+}

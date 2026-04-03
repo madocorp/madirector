@@ -53,6 +53,7 @@ trait InternalCommands {
         break;
     }
     $cmd = end($this->commands);
+    $this->setGit();
     $cmd[0]->refreshCommandLine();
     return true;
   }
