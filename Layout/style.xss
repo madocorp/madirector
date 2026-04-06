@@ -113,8 +113,8 @@ Terminal {
 
 CompletionWindow {
   position: absolute;
-  x: -0.45%w;
-  y: -0.45%w;
+  x: 0.45%w;
+  y: -60px;
   minHeight: 20px;
   backgroundColor: #cccccc;
   border: 3px;
@@ -124,12 +124,11 @@ CompletionWindow {
 }
 
 ListBoxContainer {
-  width: 210px;
   padding: 0px, 5px;
 }
 
 ListBox {
-  width: 200px;
+  width: calculated;
   height: content;
   maxHeight: 200px;
 }

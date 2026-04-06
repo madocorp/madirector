@@ -40,6 +40,9 @@ trait InternalCommands {
         $path = trim($path);
         if (substr($path, 0, 2) === './') {
           $path = $this->cwd . substr($path, 1);
+        } else if (substr($path, 0, 2) === '~/') {
+          $home = \SPTK\Config::getHome();
+          $path = $home . substr($path, 1);
         } else if (substr($path, 0, 1) !== '/') {
           $path = rtrim($this->cwd, '/') . '/' . $path;
         }

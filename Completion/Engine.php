@@ -54,6 +54,7 @@ class Engine {
     $completionWindow = \SPTK\Element::firstByType('CompletionWindow', $window);
     if ($completionWindow === false) {
       $completionWindow = new \SPTK\Element($window, false, false, 'CompletionWindow');
+      $completionWindow->addEvent('KeyPress', '\\MADIR\\Completion\\Engine::keyPressHandler');
     } else {
       $completionWindow->clear();
     }
@@ -69,7 +70,7 @@ class Engine {
         $overflow = $candidates['overflow'];
         unset($candidates['overflow']);
       }
-      $container->setText("{$type}:");
+      $container->setText("{$type}:\n");
       $listBox = new \SPTK\Elements\ListBox($container);
       if ($firstBox === false) {
         $firstBox = $listBox;
@@ -78,13 +79,16 @@ class Engine {
         $item = new \SPTK\Elements\ListItem($listBox);
         $item->setValue($candidate);
       }
-      $container->addText($overflow);
+      $container->addText("\n$overflow");
     }
     $firstBox->activateItem();
     $firstBox->raise();
   }
 
   public static function hideWindow(): void {
+    if (self::$display === false) {
+      return;
+    }
     self::$display = false;
     $completionWindow = \SPTK\Element::firstByType('CompletionWindow');
     if ($completionWindow !== false) {
@@ -116,9 +120,6 @@ class Engine {
   }
 
   public static function replace(\MADIR\Command\Command $command, ?string $replace = null): bool {
-    if (self::$display === false) {
-      return false;
-    }
     $value = $command->getValue();
     $cursor = $command->getCursorPos();
     $before = substr($value, 0, $cursor - mb_strlen(self::$lastArg));
@@ -127,12 +128,18 @@ class Engine {
       $completionWindow = \SPTK\Element::firstByType('CompletionWindow');
       $groups = \SPTK\Element::allByType('ListBox', $completionWindow);
       if (empty($groups)) {
+        if (self::$display === false) {
+          return false;
+        }
         self::hideWindow();
         return true;
       }
       $replace = $groups[self::$selectedGroup]->getValue() ;
     }
-    $command->setValue($before . $replace . ' ' . $after);
+    $command->setValue($before . $replace . $after);
+    if (self::$display === false) {
+      return false;
+    }
     self::hideWindow();
     return true;
   }
@@ -142,7 +149,7 @@ class Engine {
     if (empty($commandString)) {
       return [];
     }
-    $parser = new \MADIR\Command\CommandParser($command->session);
+    $parser = new \MADIR\Command\CommandParser($command->session, false);
     $parsedCommands = $parser->parse($commandString);
     $lastCommand = end($parsedCommands);
     $lastSequence = $lastCommand['sequence'];
@@ -150,6 +157,9 @@ class Engine {
     $lastPipeline = $lastSequence['pipeline'];
     $lastPipeline = end($lastPipeline);
     $lastArgv = $lastPipeline['argv'];
+    if (substr($commandString, -1) === ' ' && substr(end($lastArgv), -1) !== ' ') {
+      $lastArgv[] = '';
+    }
     return $lastArgv;
   }
 
@@ -168,6 +178,14 @@ class Engine {
       $providers[] = 'Directory';
       return $providers;
     }
+    if (count($argv) > 1) {
+      $providers[] = 'File';
+      $providers[] = 'Directory';
+    }
+    $lastArgv = end($argv);
+    if (substr($lastArgv, 0, 1) === '$') {
+      $providers[] = 'Variable';
+    }
     return $providers;
   }
 
@@ -176,6 +194,33 @@ class Engine {
     unset($argv[0]);
     $tmpArgv[] = implode(' ', $argv);
     return $tmpArgv;
+  }
+
+  public static function keyPressHandler($element, $event) {
+    $keyCombo = \SPTK\SDLWrapper\KeyCombo::resolve($event['mod'], $event['scancode'], $event['key']);
+    switch ($keyCombo) {
+      case \SPTK\SDLWrapper\Action::MOVE_LEFT:
+        self::selectGroup(-1);
+        \SPTK\Element::refresh();
+        return true;
+      case \SPTK\SDLWrapper\Action::MOVE_RIGHT:
+        self::selectGroup(1);
+        \SPTK\Element::refresh();
+        return true;
+      case \SPTK\SDLWrapper\Action::DO_IT:
+        $session = \MADIR\Command\Session::getCurrent();
+        $command = $session->currentCommand();
+        self::replace($command);
+        \SPTK\Element::refresh();
+        return true;
+      case \SPTK\SDLWrapper\Action::SWITCH_NEXT:
+        self::hideWindow();
+        \SPTK\Element::refresh();
+        return true;
+    }
+    self::hideWindow();
+    \SPTK\Element::refresh();
+    return false;
   }
 
 }

@@ -11,12 +11,14 @@ class CommandParser {
   private $pos = 0;
   private $len;
   private $aliasCounter = 0;
+  private $resolve;
 
-  public function __construct($session) {
+  public function __construct(Session $session, bool $resolve = true) {
     $this->session = $session;
+    $this->resolve = $resolve;
   }
 
-  public function parse($commandString) {
+  public function parse(string $commandString): array {
     $tokens = \MADIR\Command\CommandTokenizer::start([$commandString], "\MADIR\Command\CommandTokenizer");
     $this->tokens = $tokens[0]['tokens'];
     // DEBUG:4 echo "Command tokens: {$commandString}\n";
@@ -186,6 +188,9 @@ class CommandParser {
   }
 
   private function resolveAlias() {
+    if (!$this->resolve) {
+      return false;
+    }
     $aliasList = Session::getAliasList();
     $command = $this->peekValue();
     if (!isset($aliasList[$command])) {
