@@ -42,9 +42,6 @@ class Controller {
           $command->toggleScroll(false);
           self::listCommands();
         }
-        if ($command->isNew()) {
-          \MADIR\Completion\Engine::hideWindow();
-        }
         \SPTK\Element::refresh();
         return true;
       case \SPTK\SDLWrapper\KeyCode::F12:
@@ -99,10 +96,8 @@ class Controller {
         return true;
       case \SPTK\SDLWrapper\Action::DO_IT:
         if ($command->isNew()) {
-          if (!\MADIR\Completion\Engine::replace($command)) {
-            self::runCommand($command);
-            self::listCommands();
-          }
+          self::runCommand($command);
+          self::listCommands();
           \SPTK\Element::refresh();
           return true;
         }
@@ -135,25 +130,13 @@ class Controller {
         \SPTK\Element::refresh();
         return true;
       case \SPTK\SDLWrapper\Action::MOVE_LEFT:
-        if ($command->isNew()) {
-          if (!\MADIR\Completion\Engine::selectGroup(-1)) {
-            return false;
-          }
-        } else {
-          $session->moveGroupCursor(-1, 0);
-          self::listCommands();
-        }
+        $session->moveGroupCursor(-1, 0);
+        self::listCommands();
         \SPTK\Element::refresh();
         return true;
       case \SPTK\SDLWrapper\Action::MOVE_RIGHT:
-        if ($command->isNew()) {
-          if (!\MADIR\Completion\Engine::selectGroup(1)) {
-            return false;
-          }
-        } else {
-          $session->moveGroupCursor(1, 0);
-          self::listCommands();
-        }
+        $session->moveGroupCursor(1, 0);
+        self::listCommands();
         \SPTK\Element::refresh();
         return true;
       case \SPTK\SDLWrapper\Action::SELECT_UP:
