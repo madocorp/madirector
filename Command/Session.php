@@ -75,7 +75,7 @@ class Session {
     }
   }
 
-  public static function getSessionList(): string {
+  public static function getSessionListText(): string {
     $list = [];
     foreach (self::$sessions as $i => $session) {
       $current = ($i === self::$current ? '*' : ' ');
@@ -86,7 +86,17 @@ class Session {
     return implode("\n", $list);
   }
 
-  public static function delete(int $id): string {
+  public static function getSessionList(): array {
+    $list = [];
+    foreach (self::$sessions as $i => $session) {
+      $id = $session->id();
+      $name = $session->getName();
+      $list[] = ($name === null ? $id : $name);
+    };
+    return $list;
+  }
+
+  public static function delete(int $id): bool {
     if ($id === self::$current) {
       self::selectSession(1, true);
     }
@@ -94,10 +104,10 @@ class Session {
       self::selectSession(-1, true);
     }
     if ($id === self::$current) {
-      return "You can't delete the last session.\n";
+      return false;
     }
     unset(self::$sessions[$id]);
-    return self::getSessionList();
+    return true;
   }
 
   public $commands = [];
@@ -143,6 +153,8 @@ class Session {
 
   public function setName($name) {
     $this->name = $name;
+    $commandLine = end($this->commands);
+    $commandLine[0]->refreshCommandLine();
   }
 
   public function getName() {
@@ -323,6 +335,14 @@ class Session {
       return $this->vars[$vname];
     }
     return $name;
+  }
+
+  public function getVarList() {
+    return array_keys($this->vars);
+  }
+
+  public function getEnvList() {
+    return array_keys($this->env);
   }
 
   private function handleInternal($command, &$output) {

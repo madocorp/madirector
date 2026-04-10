@@ -55,6 +55,9 @@ class Engine {
     if ($completionWindow === false) {
       $completionWindow = new \SPTK\Element($window, false, false, 'CompletionWindow');
       $completionWindow->addEvent('KeyPress', '\\MADIR\\Completion\\Engine::keyPressHandler');
+      $style = $completionWindow->getStyle();
+      $y = \MADIR\Screen\Controller::$sizes['commandHeight'];
+      $style->set('y', "-{$y}px");
     } else {
       $completionWindow->clear();
     }
@@ -71,7 +74,7 @@ class Engine {
         unset($candidates['overflow']);
       }
       $container->setText("{$type}:\n");
-      $listBox = new \SPTK\Elements\ListBox($container);
+      $listBox = new \SPTK\Elements\ListBox($container, false, 'completion-list');
       if ($firstBox === false) {
         $firstBox = $listBox;
       }
@@ -164,13 +167,24 @@ class Engine {
   }
 
   protected static function route(array &$argv): array {
+    $lastArgv = end($argv);
     $providers = [];
     if (empty($argv)) {
+      return $providers;
+    }
+    if (substr($lastArgv, 0, 1) === '$') {
+      $providers[] = 'Variable';
+      $providers[] = 'Env';
       return $providers;
     }
     if (count($argv) === 1) {
       $providers[] = 'Command';
       $providers[] = 'InternalCommand';
+      $providers[] = 'Alias';
+      return $providers;
+    }
+    if ($argv[0] === 's' || $argv[0] === 'session') {
+      $providers[] = 'Session';
       return $providers;
     }
     if ($argv[0] === 'cd') {
@@ -181,10 +195,6 @@ class Engine {
     if (count($argv) > 1) {
       $providers[] = 'File';
       $providers[] = 'Directory';
-    }
-    $lastArgv = end($argv);
-    if (substr($lastArgv, 0, 1) === '$') {
-      $providers[] = 'Variable';
     }
     return $providers;
   }

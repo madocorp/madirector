@@ -1,0 +1,95 @@
+<Root>
+
+  <Panel name="kill">
+    <PanelTitle>Send signal</PanelTitle>
+    <PanelContent>
+      <Tabs>
+        <Tab contentName="process-control">Process control</Tab>
+        <Tab contentName="execution-state">Execution state</Tab>
+        <Tab contentName="application-control">Appication control</Tab>
+        <Tab contentName="all">All</Tab>
+        <ListBox class="kill-list" name="process-control">
+          <ListItem><KillTitle>Terminate</KillTitle><KillName>SIGTERM</KillName><KillDesc>Graceful shutdown</KillDesc></ListItem>
+          <ListItem><KillTitle>Interrupt</KillTitle><KillName>SIGINT</KillName><KillDesc>Ask the process to stop what it’s currently doing (Ctrl+C)</KillDesc></ListItem>
+          <ListItem><KillTitle>Force kill</KillTitle><KillName>SIGKILL</KillName><KillDesc>Immediate termination when the process does not respond</KillDesc></ListItem>
+        </ListBox>
+        <ListBox class="kill-list" name="execution-state">
+          <ListItem><KillTitle>Pause</KillTitle><KillName>SIGSTOP</KillName><KillDesc>Freeze the process immediately</KillDesc></ListItem>
+          <ListItem><KillTitle>Resume</KillTitle><KillName>SIGCONT</KillName><KillDesc>Continue a paused process</KillDesc></ListItem>
+        </ListBox>
+        <ListBox class="kill-list" name="application-control">
+          <ListItem><KillTitle>Reload</KillTitle><KillName>SIGHUP</KillName><KillDesc>Reload config / reopen files (if supported)</KillDesc></ListItem>
+          <ListItem><KillTitle>User signal 1</KillTitle><KillName>SIGUSR1</KillName><KillDesc>Application-defined</KillDesc></ListItem>
+          <ListItem><KillTitle>User signal 2</KillTitle><KillName>SIGUSR2</KillName><KillDesc>Application-defined</KillDesc></ListItem>
+        </ListBox>
+        <ListBox class="kill-list" name="all">
+          <ListItem><KillTitle>[1]</KillTitle><KillName>SIGHUP</KillName></ListItem>
+          <ListItem><KillTitle>[2]</KillTitle><KillName>SIGINT</KillName></ListItem>
+          <ListItem><KillTitle>[3]</KillTitle><KillName>SIGQUIT</KillName></ListItem>
+          <ListItem><KillTitle>[4]</KillTitle><KillName>SIGILL</KillName></ListItem>
+          <ListItem><KillTitle>[5]</KillTitle><KillName>SIGTRAP</KillName></ListItem>
+          <ListItem><KillTitle>[6]</KillTitle><KillName>SIGABRT</KillName></ListItem>
+          <ListItem><KillTitle>[7]</KillTitle><KillName>SIGBUS</KillName></ListItem>
+          <ListItem><KillTitle>[8]</KillTitle><KillName>SIGFPE</KillName></ListItem>
+          <ListItem><KillTitle>[9]</KillTitle><KillName>SIGKILL</KillName></ListItem>
+          <ListItem><KillTitle>[10]</KillTitle><KillName>SIGUSR1</KillName></ListItem>
+          <ListItem><KillTitle>[11]</KillTitle><KillName>SIGSEGV</KillName></ListItem>
+          <ListItem><KillTitle>[12]</KillTitle><KillName>SIGUSR2</KillName></ListItem>
+          <ListItem><KillTitle>[13]</KillTitle><KillName>SIGPIPE</KillName></ListItem>
+          <ListItem><KillTitle>[14]</KillTitle><KillName>SIGALRM</KillName></ListItem>
+          <ListItem><KillTitle>[15]</KillTitle><KillName>SIGTERM</KillName></ListItem>
+          <ListItem><KillTitle>[16]</KillTitle><KillName>SIGSTKFLT</KillName></ListItem>
+          <ListItem><KillTitle>[17]</KillTitle><KillName>SIGCHLD</KillName></ListItem>
+          <ListItem><KillTitle>[18]</KillTitle><KillName>SIGCONT</KillName></ListItem>
+          <ListItem><KillTitle>[19]</KillTitle><KillName>SIGSTOP</KillName></ListItem>
+          <ListItem><KillTitle>[20]</KillTitle><KillName>SIGTSTP</KillName></ListItem>
+          <ListItem><KillTitle>[21]</KillTitle><KillName>SIGTTIN</KillName></ListItem>
+          <ListItem><KillTitle>[22]</KillTitle><KillName>SIGTTOU</KillName></ListItem>
+          <ListItem><KillTitle>[23]</KillTitle><KillName>SIGURG</KillName></ListItem>
+          <ListItem><KillTitle>[24]</KillTitle><KillName>SIGXCPU</KillName></ListItem>
+          <ListItem><KillTitle>[25]</KillTitle><KillName>SIGXFSZ</KillName></ListItem>
+          <ListItem><KillTitle>[26]</KillTitle><KillName>SIGVTALRM</KillName></ListItem>
+          <ListItem><KillTitle>[27]</KillTitle><KillName>SIGPROF</KillName></ListItem>
+          <ListItem><KillTitle>[28]</KillTitle><KillName>SIGWINCH</KillName></ListItem>
+          <ListItem><KillTitle>[29]</KillTitle><KillName>SIGIO</KillName></ListItem>
+          <ListItem><KillTitle>[30]</KillTitle><KillName>SIGPWR</KillName></ListItem>
+          <ListItem><KillTitle>[31]</KillTitle><KillName>SIGSYS</KillName></ListItem>
+          <ListItem><KillTitle>[32]</KillTitle><KillName>SIGRTMIN-2</KillName></ListItem>
+          <ListItem><KillTitle>[33]</KillTitle><KillName>SIGRTMIN-1</KillName></ListItem>
+          <ListItem><KillTitle>[34]</KillTitle><KillName>SIGRTMIN</KillName></ListItem>
+          <ListItem><KillTitle>[35]</KillTitle><KillName>SIGRTMIN+1</KillName></ListItem>
+          <ListItem><KillTitle>[36]</KillTitle><KillName>SIGRTMIN+2</KillName></ListItem>
+          <ListItem><KillTitle>[37]</KillTitle><KillName>SIGRTMIN+3</KillName></ListItem>
+          <ListItem><KillTitle>[38]</KillTitle><KillName>SIGRTMIN+4</KillName></ListItem>
+          <ListItem><KillTitle>[39]</KillTitle><KillName>SIGRTMIN+5</KillName></ListItem>
+          <ListItem><KillTitle>[40]</KillTitle><KillName>SIGRTMIN+6</KillName></ListItem>
+          <ListItem><KillTitle>[41]</KillTitle><KillName>SIGRTMIN+7</KillName></ListItem>
+          <ListItem><KillTitle>[42]</KillTitle><KillName>SIGRTMIN+8</KillName></ListItem>
+          <ListItem><KillTitle>[43]</KillTitle><KillName>SIGRTMIN+9</KillName></ListItem>
+          <ListItem><KillTitle>[44]</KillTitle><KillName>SIGRTMIN+10</KillName></ListItem>
+          <ListItem><KillTitle>[45]</KillTitle><KillName>SIGRTMIN+11</KillName></ListItem>
+          <ListItem><KillTitle>[46]</KillTitle><KillName>SIGRTMIN+12</KillName></ListItem>
+          <ListItem><KillTitle>[47]</KillTitle><KillName>SIGRTMIN+13</KillName></ListItem>
+          <ListItem><KillTitle>[48]</KillTitle><KillName>SIGRTMIN+14</KillName></ListItem>
+          <ListItem><KillTitle>[49]</KillTitle><KillName>SIGRTMIN+15</KillName></ListItem>
+          <ListItem><KillTitle>[50]</KillTitle><KillName>SIGRTMIN+16</KillName></ListItem>
+          <ListItem><KillTitle>[51]</KillTitle><KillName>SIGRTMIN+17</KillName></ListItem>
+          <ListItem><KillTitle>[52]</KillTitle><KillName>SIGRTMIN+18</KillName></ListItem>
+          <ListItem><KillTitle>[53]</KillTitle><KillName>SIGRTMIN+19</KillName></ListItem>
+          <ListItem><KillTitle>[54]</KillTitle><KillName>SIGRTMIN+20</KillName></ListItem>
+          <ListItem><KillTitle>[55]</KillTitle><KillName>SIGRTMIN+21</KillName></ListItem>
+          <ListItem><KillTitle>[56]</KillTitle><KillName>SIGRTMIN+22</KillName></ListItem>
+          <ListItem><KillTitle>[57]</KillTitle><KillName>SIGRTMIN+23</KillName></ListItem>
+          <ListItem><KillTitle>[58]</KillTitle><KillName>SIGRTMIN+24</KillName></ListItem>
+          <ListItem><KillTitle>[59]</KillTitle><KillName>SIGRTMIN+25</KillName></ListItem>
+          <ListItem><KillTitle>[60]</KillTitle><KillName>SIGRTMIN+26</KillName></ListItem>
+          <ListItem><KillTitle>[61]</KillTitle><KillName>SIGRTMIN+27</KillName></ListItem>
+          <ListItem><KillTitle>[62]</KillTitle><KillName>SIGRTMIN+28</KillName></ListItem>
+          <ListItem><KillTitle>[63]</KillTitle><KillName>SIGRTMIN+29</KillName></ListItem>
+          <ListItem><KillTitle>[64]</KillTitle><KillName>SIGRTMAX</KillName></ListItem>
+        </ListBox>
+      </Tabs>
+    </PanelContent>
+  </Panel>
+
+</Root>

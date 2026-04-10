@@ -10,6 +10,7 @@ class Directory implements \MADIR\Completion\Provider {
 
   public function getCandidates(array $argv, \MADIR\Command\Session $session): array {
     $candidates = [];
+    $hidden = [];
     $partialPath = end($argv);
     $this->parsePath($partialPath, $session);
     if (!is_dir($this->dir)) {
@@ -25,10 +26,17 @@ class Directory implements \MADIR\Completion\Provider {
         continue;
       }
       if ($this->prefix === '' ||  strpos($file, $this->prefix) === 0) {
-        $candidates[] = $this->replaceDir . '/' . $file . '/';
+        $candidate = (!empty($this->replaceDir) ? $this->replaceDir . '/' : '') . $file . '/';
+        if (strpos($file, '.') === 0) {
+          $hidden[] = $candidate;
+        } else {
+          $candidates[] = $candidate;
+        }
       }
     }
     sort($candidates);
+    sort($hidden);
+    $candidates = array_merge($candidates, $hidden);
     return $candidates;
   }
 
@@ -50,10 +58,13 @@ class Directory implements \MADIR\Completion\Provider {
     if ($parts === ['']) {
       $this->dir = '/';
     } else if (empty($parts)) {
-      $this->replaceDir = '.';
+      $this->replaceDir = '';
       $this->dir = $session->cwd();
     } else {
       $this->dir = implode('/', $parts);
+    }
+    if (strpos($this->dir, '/') !== 0) {
+      $this->dir = $session->cwd() . '/' . $this->dir;
     }
   }
 

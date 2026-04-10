@@ -24,12 +24,16 @@ class Controller {
   protected static $outputMode = self::MODE_IDLE;
   protected static $activeTill = 0;
   protected static $interactiveTill = 0;
+  protected static $killPanel;
 
   public static function init() {
     cli_set_process_title('MADIR');
     \SPTK\SDLWrapper\SDL::$instance->setWaitTime(self::IDLE_TIMEOUT);
     new \MADIR\Command\Session(0);
     self::measureSize();
+    $window = \SPTK\Element::firstByType('Window');
+    new \SPTK\LayoutXmlReader('Layout/kill.xml', $window);
+    self::$killPanel = \SPTK\Element::ByName('kill', $window);
     self::ListCommands();
   }
 
@@ -116,17 +120,25 @@ class Controller {
         \SPTK\Element::refresh();
         return true;
       case \SPTK\SDLWrapper\Action::MOVE_UP:
-        if (!$session->moveGroupCursor(0, -1)) {
-          $session->previousCommand();
+        if ($command->isNew()) {
+          $session->history(1);
+        } else {
+          if (!$session->moveGroupCursor(0, -1)) {
+            $session->previousCommand();
+          }
+          self::listCommands();
         }
-        self::listCommands();
         \SPTK\Element::refresh();
         return true;
       case \SPTK\SDLWrapper\Action::MOVE_DOWN:
-        if (!$session->moveGroupCursor(0, 1)) {
-          $session->nextCommand();
+        if ($command->isNew()) {
+          $session->history(-1);
+        } else {
+          if (!$session->moveGroupCursor(0, 1)) {
+            $session->nextCommand();
+          }
+          self::listCommands();
         }
-        self::listCommands();
         \SPTK\Element::refresh();
         return true;
       case \SPTK\SDLWrapper\Action::MOVE_LEFT:
@@ -140,15 +152,17 @@ class Controller {
         \SPTK\Element::refresh();
         return true;
       case \SPTK\SDLWrapper\Action::SELECT_UP:
-        if ($command->isNew()) {
-          $session->history(1);
+        if (!$session->moveGroupCursor(0, -1)) {
+          $session->previousCommand();
         }
+        self::listCommands();
         \SPTK\Element::refresh();
         return true;
       case \SPTK\SDLWrapper\Action::SELECT_DOWN:
-        if ($command->isNew()) {
-          $session->history(-1);
+        if (!$session->moveGroupCursor(0, 1)) {
+          $session->nextCommand();
         }
+        self::listCommands();
         \SPTK\Element::refresh();
         return true;
       case \SPTK\SDLWrapper\Action::COPY:
@@ -159,7 +173,14 @@ class Controller {
         return true;
       case \SPTK\SDLWrapper\Action::DELETE_FORWARD:
         if ($command->isRunning()) {
-          // kill
+          $window = \SPTK\Element::firstByType('Window');
+          $panel = \SPTK\Element::ByName('kill', $window);
+          if ($panel === false) {
+            $panel = self::$killPanel;
+            $window->addDescendant($panel);
+          }
+          $panel->show();
+          \SPTK\Element::refresh();
         } else {
           if (!$command->isZoomed() && !$command->isScrolled()) {
             $session->deleteCommand($command->getCid());
@@ -273,6 +294,7 @@ class Controller {
     self::$sizes['windowWidth'] = $wgeometry->innerWidth;
     self::$sizes['letterHeight'] = $letterHeight;
     self::$sizes['letterWidth'] = $letterWidth;
+    self::$sizes['commandHeight'] = $bgeometry->height;
   }
 
   public static function heightChanged() {
@@ -300,14 +322,13 @@ class Controller {
       self::$activeTill = $now + self::ACTIVE_PERIOD;
     }
     self::$lastOutput = $now;
-
   }
 
   public static function periodicRefresh() {
     if (self::$heightChanged) {
       self::listCommands();
       \SPTK\Element::refresh();
-    } else if (self::$outputHappened > 0) {
+    } else  if (self::$outputHappened) {
       $window = \SPTK\Element::firstByType('Window');
       $terminals = \SPTK\Element::allByType('Terminal', $window);
       foreach ($terminals as $terminal) {
