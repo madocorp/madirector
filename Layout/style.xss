@@ -114,7 +114,7 @@ Terminal {
 CompletionWindow {
   position: absolute;
   x: 0.45%w;
-  y: -60px;
+  y: -0px;
   minHeight: 20px;
   backgroundColor: #cccccc;
   border: 3px;
@@ -127,8 +127,35 @@ ListBoxContainer {
   padding: 0px, 5px;
 }
 
-ListBox {
+.completion-list {
   width: calculated;
   height: content;
   maxHeight: 200px;
+}
+
+.kill-list {
+  height: 300px;
+}
+
+KillTitle {
+  width: 20%;
+}
+
+KillName {
+  width: 20%;
+}
+
+KillDesc {
+  width: 60%;
+}
+
+.tab {
+  width: 25%;
+  textAlign: center;
+  padding: 5px;
+}
+
+.active-tab {
+  backgroundColor: #555555;
+  color: #ffffff;
 }

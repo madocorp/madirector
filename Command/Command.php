@@ -205,7 +205,13 @@ class Command {
 
   public function refreshCommandLine() {
     $info = \SPTK\Element::firstByType('CommandInfo', $this->box);
-    $session = Session::$current . ($this->cid ? '/' . $this->cid  : '') . ': ';
+    $session = Session::$current;
+    if ($this->cid) {
+      $session .= '.' . $this->cid;
+    } else if (!empty($this->session->getName())) {
+      $session .= '"' . $this->session->getName() . '"';
+    }
+    $session .= ':';
     $cwd = rtrim($this->session->cwd(), '/') . '/';
     $git = $this->session->git() ? ' [' . $this->session->git() . ']' : '';
     $info->setText($session . $cwd . $git);

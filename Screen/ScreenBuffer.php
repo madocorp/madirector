@@ -690,10 +690,10 @@ class ScreenBuffer {
     if ($i === $this->previousCursor[0] && $j === $this->previousCursor[1]) {
       return true;
     }
-    if (!isset($this->altScreen[$i][$j]) || !isset($this->previousScreen[$i][$j])) {
+    if (!isset($this->currentScreen[$i][$j]) || !isset($this->previousScreen[$i][$j])) {
       return true;
     }
-    $a = $this->altScreen[$i][$j];
+    $a = $this->currentScreen[$i][$j];
     $b = $this->previousScreen[$i][$j];
     if ($a[self::GLYPH] != $b[self::GLYPH]) {
       return true;

@@ -2,13 +2,13 @@
 
 namespace MADIR\Completion\Provider;
 
-class Variable implements \MADIR\Completion\Provider {
+class Env implements \MADIR\Completion\Provider {
 
   public function getCandidates(array $argv, \MADIR\Command\Session $session): array {
     $candidates = [];
     $lastArgv = end($argv);
     $search = substr($lastArgv, 1);
-    foreach ($session->getVarList() as $var) {
+    foreach ($session->getEnvList() as $var) {
       $score = 0;
       if ($var === $search) {
         $score += 100;
