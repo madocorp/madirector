@@ -44,6 +44,10 @@ class Commander {
             // DEBUG:8 echo "MSGRCV: commander [size]\n";
             $this->sendSize($message);
           }
+          if (isset($message['signal'])) {
+            // DEBUG:8 echo "MSGRCV: commander [signal]\n";
+            $this->sendSignal($message);
+          }
           if (isset($message['command'])) {
             // DEBUG:8 echo "MSGRCV: commander [command: {$message['command']}]\n";
             $this->delegateCommand($message);
@@ -91,6 +95,19 @@ class Commander {
     }
     if ($selectedPty !== false) {
       $selectedPty->sendSize($size['size']);
+    }
+  }
+
+  private function sendSignal($signal) {
+    $selectedPty = false;
+    foreach ($this->ptys as $pty) {
+      if ($pty->cid === $signal['cid']) {
+        $selectedPty = $pty;
+        break;
+      }
+    }
+    if ($selectedPty !== false) {
+      $selectedPty->sendSignal($signal['signal']);
     }
   }
 

@@ -156,4 +156,8 @@ class Executor {
     return $this->returnValue;
   }
 
+  public function sendSignal($signal) {
+    posix_kill($this->pgid, $signal);
+  }
+
 }

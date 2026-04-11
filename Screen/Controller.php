@@ -22,6 +22,7 @@ class Controller {
   protected static $outputHappened = false;
   protected static $lastOutput = 0;
   protected static $outputMode = self::MODE_IDLE;
+  protected static $lockOutput = false;
   protected static $activeTill = 0;
   protected static $interactiveTill = 0;
   protected static $killPanel;
@@ -173,8 +174,9 @@ class Controller {
         return true;
       case \SPTK\SDLWrapper\Action::DELETE_FORWARD:
         if ($command->isRunning()) {
+          self::$lockOutput = true;
           $window = \SPTK\Element::firstByType('Window');
-          $panel = \SPTK\Element::ByName('kill', $window);
+          $panel = \SPTK\Element::byName('kill', $window);
           if ($panel === false) {
             $panel = self::$killPanel;
             $window->addDescendant($panel);
@@ -235,6 +237,9 @@ class Controller {
   public static function listCommands() {
     \MADIR\Completion\Engine::hideWindow();
     $window = \SPTK\Element::firstByType('Window');
+    if ($window === false) {
+      return;
+    }
     $window->clear();
     $wgeometry = $window->getGeometry();
     $session = \MADIR\Command\Session::getCurrent();
@@ -325,6 +330,9 @@ class Controller {
   }
 
   public static function periodicRefresh() {
+    if (self::$lockOutput) {
+      return;
+    }
     if (self::$heightChanged) {
       self::listCommands();
       \SPTK\Element::refresh();
@@ -348,6 +356,29 @@ class Controller {
       \SPTK\SDLWrapper\SDL::$instance->setWaitTime(self::IDLE_TIMEOUT);
       // DEBUG:6 echo "Mode: IDLE\n";
     }
+  }
+
+  public static function closeSignalPanel() {
+    $panel = \SPTK\Element::ByName('kill');
+    if ($panel !== false) {
+      $panel->remove();
+    }
+    \SPTK\Element::refresh();
+    self::$lockOutput = false;
+  }
+
+  public static function sendSignal() {
+    $panel = \SPTK\Element::ByName('kill');
+    if ($panel === false) {
+      return;
+    }
+    $tabs = \SPTK\Element::firstByType('Tabs');
+    $list = $tabs->getTabContent();
+    $signal = $list->getValue();
+    $session = \MADIR\Command\Session::getCurrent();
+    $command = $session->currentCommand();
+    \MADIR\Pty\CommanderHandler::sendSignal($command->getCid(), $signal);
+    self::closeSignalPanel();
   }
 
 }

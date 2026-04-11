@@ -66,6 +66,14 @@ class CommanderHandler {
     ]);
   }
 
+  public static function sendSignal($cid, $signal) {
+    // DEBUG:8 echo "MSGSND: main->commander [signal]\n";
+    Message::send(self::$commanderSocket, [
+      'cid' => $cid,
+      'signal' => $signal
+    ]);
+  }
+
   public static function loop() {
     $events = IO::pollAndReceive(0, [self::$commanderSocket]);
     foreach ($events as $item) {
