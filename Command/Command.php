@@ -66,6 +66,7 @@ class Command {
     // if current session, on screen, etc ...
     $newHeight = $this->screenBuffer->countVisibleLines();
     if ($newHeight !== $this->height) {
+      $this->screenBuffer->invalidateScreen();
       \MADIR\Screen\Controller::heightChanged();
     }
     \MADIR\Screen\Controller::outputHappened();

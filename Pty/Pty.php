@@ -65,6 +65,9 @@ class Pty {
               $size = explode('x', $message['size']);
               Libc::setSize($this->master, $size[0], $size[1]);
             }
+            if ($message['type'] === Message::SIGNAL) {
+              $executor->sendSignal($message['signal']);
+            }
           }
         }
       }

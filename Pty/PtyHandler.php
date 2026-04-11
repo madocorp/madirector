@@ -45,4 +45,9 @@ class PtyHandler {
     Message::send($this->socket, ['cid' => $this->cid, 'size' => $size]);
   }
 
+  public function sendSignal($signal) {
+    // DEBUG:8 echo "MSGSND: commander->pty [signal]\n";
+    Message::send($this->socket, ['cid' => $this->cid, 'signal' => $signal]);
+  }
+
 }
