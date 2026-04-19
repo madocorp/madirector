@@ -369,7 +369,7 @@ class Terminal extends Element {
           }
           return true;
         default:
-          return true;
+          return false;
       }
     }
     return false;

@@ -224,11 +224,9 @@ class Session {
     $groupCursor += $h + $v * $columns;
     if ($groupCursor < 0) {
       return false;
-//      $groupCursor = 0;
     }
     if ($groupCursor > $n - 1) {
       return false;
-//      $groupCursor = $n - 1;
     }
     $this->groupCursor[$this->selected] = $groupCursor;
     return true;
@@ -243,6 +241,14 @@ class Session {
     $this->selected = min($n - 1, $this->selected + 1);
   }
 
+  public function firstCommand() {
+    $this->selected = 0;
+  }
+
+  public function lastCommand() {
+    $n = count($this->commands);
+    $this->selected = $n - 1;
+  }
   public function currentCommand() {
     $groupCursor = $this->getGroupCursor();
     return $this->commands[$this->selected][$groupCursor];
@@ -303,6 +309,9 @@ class Session {
       $commandLine->saveValue();
     }
     $n = count($this->commands);
+    if ($n <= 1) {
+      return;
+    }
     $this->history += $step;
     if ($this->history > $n) {
       $this->history = $n;
@@ -310,16 +319,34 @@ class Session {
     if ($this->history < 1) {
       $this->history = 1;
     }
-    $command = $this->commands[$n - $this->history];
+    $gcommand = $this->commands[$n - $this->history];
     if ($this->history === 1) {
       $commandLine->restoreValue();
     } else {
       $commandStr = [];
-      foreach ($command as $gcommand) {
-        $commandStr[] = $gcommand->command['commandString'];
+      foreach ($gcommand as $command) {
+        $commandStr[] = $command->command['commandString'];
       }
       $commandLine->setValue(implode(' & ', $commandStr));
     }
+  }
+
+  public function getHistory() {
+    $history = [];
+    foreach ($this->commands as $gcommand) {
+      $commandStr = [];
+      foreach ($gcommand as $command) {
+        if ($command->command === false) {
+          continue;
+        }
+        $commandStr[] = $command->command['commandString'];
+      }
+      if (!empty($commandStr)) {
+        $commandStr = implode(' & ', $commandStr);
+        $history[] = $commandStr;
+      }
+    }
+    return $history;
   }
 
   public function getenv() {

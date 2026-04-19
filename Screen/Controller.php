@@ -26,6 +26,7 @@ class Controller {
   protected static $activeTill = 0;
   protected static $interactiveTill = 0;
   protected static $killPanel;
+  protected static $searchPanel;
 
   public static function init() {
     cli_set_process_title('MADIR');
@@ -34,7 +35,9 @@ class Controller {
     self::measureSize();
     $window = \SPTK\Element::firstByType('Window');
     new \SPTK\LayoutXmlReader('Layout/kill.xml', $window);
+    new \SPTK\LayoutXmlReader('Layout/search.xml', $window);
     self::$killPanel = \SPTK\Element::ByName('kill', $window);
+    self::$searchPanel = \SPTK\Element::ByName('search', $window);
     self::ListCommands();
   }
 
@@ -110,6 +113,16 @@ class Controller {
         self::listCommands();
         \SPTK\Element::refresh();
         return true;
+      case \SPTK\SDLWrapper\Action::MOVE_FIRST:
+        $session->firstCommand();
+        self::listCommands();
+        \SPTK\Element::refresh();
+        return true;
+      case \SPTK\SDLWrapper\Action::MOVE_LAST:
+        $session->lastCommand();
+        self::listCommands();
+        \SPTK\Element::refresh();
+        return true;
       case \SPTK\SDLWrapper\Action::PAGE_UP:
         $session->previousCommand();
         self::listCommands();
@@ -166,11 +179,23 @@ class Controller {
         self::listCommands();
         \SPTK\Element::refresh();
         return true;
+      case \SPTK\SDLWrapper\KeyCode::C:
       case \SPTK\SDLWrapper\Action::COPY:
-        \SPTK\Clipboard::set($command->getCommandString(false));
+        if (!$command->isNew()) {
+          \SPTK\Clipboard::set($command->getCommandString(false));
+        }
         return true;
+      case \SPTK\SDLWrapper\KeyCode::V:
+      case \SPTK\SDLWrapper\Action::PASTE:
+        if (!$command->isNew() && $command->isRunning()) {
+          $text = \SPTK\Clipboard::get();
+        }
+        return true;
+      case \SPTK\SDLWrapper\KeyCode::A:
       case \SPTK\SDLWrapper\Action::SELECT_ALL:
-        \SPTK\Clipboard::set($command->getCommandString(true));
+        if (!$command->isNew()) {
+          \SPTK\Clipboard::set($command->getCommandString(true));
+        }
         return true;
       case \SPTK\SDLWrapper\Action::DELETE_FORWARD:
         if ($command->isRunning()) {
@@ -205,6 +230,29 @@ class Controller {
         if ($command->isNew()) {
           \MADIR\Completion\Engine::complete($command);
           \SPTK\Element::refresh();
+        }
+        return true;
+      case \SPTK\SDLWrapper\KeyCode::F:
+        if ($command->isScrolled()) {
+          self::$lockOutput = true;
+          $window = \SPTK\Element::firstByType('Window');
+          $panel = \SPTK\Element::byName('search', $window);
+          if ($panel === false) {
+            $panel = self::$searchPanel;
+            $window->addDescendant($panel);
+          }
+          $panel->show();
+          \SPTK\Element::refresh();
+        }
+        return true;
+      case \SPTK\SDLWrapper\KeyCode::B:
+        if ($command->isScrolled()) {
+          // find backward
+        }
+        return true;
+      case \SPTK\SDLWrapper\KeyCode::N:
+        if ($command->isScrolled()) {
+          // find next
         }
         return true;
     }

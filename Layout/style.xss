@@ -131,6 +131,7 @@ ListBoxContainer {
   width: calculated;
   height: content;
   maxHeight: 200px;
+  maxWidth: 500px;
 }
 
 .kill-list {
@@ -160,3 +161,6 @@ KillDesc {
   color: #ffffff;
 }
 
+#search {
+  maxWidth: 700px;
+}

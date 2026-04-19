@@ -192,6 +192,7 @@ class Command {
   }
 
   private function createCommandLine() {
+    $this->done = true;
     $window = \SPTK\Element::firstByType('Window');
     $block = new \SPTK\Element($window, 'newCommand', false, 'CommandBlock');
     $this->box = $block;
