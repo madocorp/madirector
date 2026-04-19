@@ -1,0 +1,19 @@
+<Root>
+
+  <Panel name="search">
+    <PanelTitle>search</PanelTitle>
+    <PanelContent>
+      <Label>Pattern:
+        <Input name="pattern" />
+      </Label>
+      <CheckBox name="regexp">Regexp</CheckBox>
+      <CheckBox name="case-sensitive">Case sensitive</CheckBox>
+      <CheckBox name="backwards">Backwards</CheckBox>
+      <ButtonBox>
+        <Button hotKey="ESCAPE" onPress="MADIR\Screen\Controller::closeSignalPanel">Cancel</Button><Space />
+        <Button hotKey="RETURN" onPress="MADIR\Screen\Controller::sendSignal">Search</Button>
+      </ButtonBox>
+    </PanelContent>
+  </Panel>
+
+</Root>

@@ -181,6 +181,7 @@ class Engine {
       $providers[] = 'Command';
       $providers[] = 'InternalCommand';
       $providers[] = 'Alias';
+      $providers[] = 'History';
       return $providers;
     }
     if ($argv[0] === 's' || $argv[0] === 'session') {
