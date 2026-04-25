@@ -6,12 +6,11 @@
       <Label>Pattern:
         <Input name="pattern" />
       </Label>
+      <CheckBox name="caseSensitive" value="true">Case sensitive</CheckBox>
       <CheckBox name="regexp">Regexp</CheckBox>
-      <CheckBox name="case-sensitive">Case sensitive</CheckBox>
-      <CheckBox name="backwards">Backwards</CheckBox>
       <ButtonBox>
-        <Button hotKey="ESCAPE" onPress="MADIR\Screen\Controller::closeSignalPanel">Cancel</Button><Space />
-        <Button hotKey="RETURN" onPress="MADIR\Screen\Controller::sendSignal">Search</Button>
+        <Button hotKey="ESCAPE" onPress="MADIR\Screen\Controller::closeSearchPanel">Cancel</Button><Space />
+        <Button hotKey="RETURN" onPress="MADIR\Screen\Controller::search">Search</Button>
       </ButtonBox>
     </PanelContent>
   </Panel>

@@ -201,12 +201,8 @@ class Controller {
         if ($command->isRunning()) {
           self::$lockOutput = true;
           $window = \SPTK\Element::firstByType('Window');
-          $panel = \SPTK\Element::byName('kill', $window);
-          if ($panel === false) {
-            $panel = self::$killPanel;
-            $window->addDescendant($panel);
-          }
-          $panel->show();
+          $window->addDescendant(self::$killPanel);
+          self::$killPanel->show();
           \SPTK\Element::refresh();
         } else {
           if (!$command->isZoomed() && !$command->isScrolled()) {
@@ -234,28 +230,30 @@ class Controller {
         return true;
       case \SPTK\SDLWrapper\KeyCode::F:
         if ($command->isScrolled()) {
+          \SPTK\SDLWrapper\SDL::$instance->supressTextInput();
           self::$lockOutput = true;
           $window = \SPTK\Element::firstByType('Window');
-          $panel = \SPTK\Element::byName('search', $window);
-          if ($panel === false) {
-            $panel = self::$searchPanel;
-            $window->addDescendant($panel);
-          }
-          $panel->show();
+          $window->addDescendant(self::$searchPanel);
+          self::$searchPanel->show();
           \SPTK\Element::refresh();
         }
         return true;
       case \SPTK\SDLWrapper\KeyCode::B:
         if ($command->isScrolled()) {
-          // find backward
+          $command->terminal->search->previous();
+          $command->terminal->scrollToCursor();
+          \SPTK\Element::refresh();
         }
         return true;
       case \SPTK\SDLWrapper\KeyCode::N:
         if ($command->isScrolled()) {
-          // find next
+          $command->terminal->search->next();
+          $command->terminal->scrollToCursor();
+          \SPTK\Element::refresh();
         }
         return true;
     }
+    return false;
   }
 
   private static function getBoxSize($n) {
@@ -407,26 +405,34 @@ class Controller {
   }
 
   public static function closeSignalPanel() {
-    $panel = \SPTK\Element::ByName('kill');
-    if ($panel !== false) {
-      $panel->remove();
-    }
+    self::$killPanel->remove();
     \SPTK\Element::refresh();
     self::$lockOutput = false;
   }
 
   public static function sendSignal() {
-    $panel = \SPTK\Element::ByName('kill');
-    if ($panel === false) {
-      return;
-    }
-    $tabs = \SPTK\Element::firstByType('Tabs');
+    $tabs = \SPTK\Element::firstByType('Tabs', self::$killPanel);
     $list = $tabs->getTabContent();
     $signal = $list->getValue();
     $session = \MADIR\Command\Session::getCurrent();
     $command = $session->currentCommand();
     \MADIR\Pty\CommanderHandler::sendSignal($command->getCid(), $signal);
     self::closeSignalPanel();
+  }
+
+  public static function closeSearchPanel() {
+    self::$searchPanel->remove();
+    \SPTK\Element::refresh();
+    self::$lockOutput = false;
+  }
+
+  public static function search() {
+    $search = self::$searchPanel->getValue();
+    $session = \MADIR\Command\Session::getCurrent();
+    $command = $session->currentCommand();
+    $command->terminal->search->find($search['pattern'], $search['caseSensitive'], $search['regexp']);
+    $command->terminal->scrollToCursor();
+    self::closeSearchPanel();
   }
 
 }
