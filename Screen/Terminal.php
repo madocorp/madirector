@@ -41,6 +41,7 @@ class Terminal extends Element {
   protected $cursor;
   protected $textureWidth;
   protected $textureHeight;
+  public $search;
 
   public function init() {
     $this->acceptInput = true;
@@ -89,6 +90,7 @@ class Terminal extends Element {
 
   public function setBuffer($buffer) {
     $this->buffer = $buffer;
+    $this->search = new \MADIR\Command\Search($this->buffer, $this->cursor);
   }
 
   public function setInputCallback($callback) {
@@ -309,6 +311,17 @@ class Terminal extends Element {
     return $this->texture;
   }
 
+  public function scrollToCursor() {
+    $c = $this->cursor->get();
+    $rows = $this->buffer->countVisibleLines() - 1;
+    if ($c[0] < $this->scrollOffset) {
+      $this->scrollOffset = $c[0];
+    }
+    if ($c[0] > $this->scrollOffset + $rows) {
+      $this->scrollOffset = $c[0] - $rows;
+    }
+  }
+
   public function keyPressHandler($element, $event) {
     $keycombo = KeyCombo::resolve($event['mod'], $event['scancode'], $event['key']);
     if ($keycombo === KeyCode::F12 || $keycombo === KeyCode::F11) {
@@ -335,14 +348,7 @@ class Terminal extends Element {
       $handled = $this->cursor->handleKeys($keycombo, $this->buffer->getRowCount() - 1, $this->buffer->getColCount());
       $this->cursor->save();
       if ($handled) {
-        $c = $this->cursor->get();
-        $rows = $this->buffer->countVisibleLines() - 1;
-        if ($c[0] < $this->scrollOffset) {
-          $this->scrollOffset = $c[0];
-        }
-        if ($c[0] > $this->scrollOffset + $rows) {
-          $this->scrollOffset = $c[0] - $rows;
-        }
+        $this->scrollToCursor();
         Element::refresh();
         return true;
       }
