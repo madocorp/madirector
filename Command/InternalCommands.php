@@ -220,6 +220,76 @@ trait InternalCommands {
     }
   }
 
+  private function exitCommand(array $command) {
+    $commandString = trim($command['commandString']);
+    $argv = $command['sequence'][0]['pipeline'][0]['argv'] ?? ['exit'];
+    if (($argv[0] ?? null) !== 'exit') {
+      return "Syntax error!\n";
+    }
+    if (in_array('-h', $argv, true)) {
+      $argv = ['exit'];
+    }
+    if ($argv === ['exit'] && $commandString !== 'exit') {
+      $help = "";
+      $help .= "\e[1;37m\"exit\" closes a session or quits the application.\e[0m\n";
+      $help .= "Without \e[1;37m-s\e[0m it targets the current session. Closing the last session quits MaDirector.\n";
+      $help .= "  \e[1;37mexit             \e[0mClose the current session if nothing is running.\n";
+      $help .= "  \e[1;37mexit -h          \e[0mShow this help message.\n";
+      $help .= "  \e[1;37mexit -s ID|name  \e[0mTarget a specific existing session.\n";
+      $help .= "  \e[1;37mexit -q          \e[0mDo nothing when the target session still has running commands.\n";
+      $help .= "  \e[1;37mexit -f          \e[0mKill running commands in the target session, then close it.\n";
+      return $help;
+    }
+    $force = false;
+    $quiet = false;
+    $target = $this;
+    for ($i = 1; $i < count($argv); $i++) {
+      switch ($argv[$i]) {
+        case '-q':
+          $quiet = true;
+          break;
+        case '-f':
+          $force = true;
+          break;
+        case '-s':
+          $i++;
+          $sessionName = $argv[$i] ?? '';
+          if ($sessionName === '') {
+            return "Specify a session.\n";
+          }
+          if (ctype_digit($sessionName)) {
+            $target = Session::getById((int)$sessionName);
+          } else {
+            $target = Session::getByName($sessionName);
+          }
+          if ($target === false) {
+            return "Session not found.\n";
+          }
+          break;
+        default:
+          return "Unknown option \"{$argv[$i]}\".\n";
+      }
+    }
+    if ($quiet && $force) {
+      return "Use either -q or -f.\n";
+    }
+    if ($target->hasRunningCommands()) {
+      if ($force) {
+        $target->terminateRunningCommands();
+      } else if ($quiet) {
+        return true;
+      } else {
+        return "Session has running commands.\nUse \e[1;37mexit -q\e[0m to leave it alone or \e[1;37mexit -f\e[0m to kill them.\n";
+      }
+    }
+    if (Session::count() === 1 && $target === Session::getCurrent()) {
+      \SPTK\App::$instance->quit();
+      return true;
+    }
+    Session::delete($target->id());
+    return true;
+  }
+
   private function resolveQuotation($name) {
     if (substr($name, 0, 1) === '"') {
       $name = substr($name, 1);
