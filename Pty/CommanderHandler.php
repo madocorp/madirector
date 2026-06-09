@@ -74,6 +74,10 @@ class CommanderHandler {
     ]);
   }
 
+  public static function discardCommand($cid) {
+    unset(self::$commands[$cid]);
+  }
+
   public static function loop() {
     $events = IO::pollAndReceive(0, [self::$commanderSocket]);
     foreach ($events as $item) {

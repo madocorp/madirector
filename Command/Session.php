@@ -16,6 +16,19 @@ class Session {
     return self::$sessions[self::$current];
   }
 
+  public static function getById(int $id) {
+    return self::$sessions[$id] ?? false;
+  }
+
+  public static function getByName(string $name) {
+    foreach (self::$sessions as $session) {
+      if ($session->getName() === $name) {
+        return $session;
+      }
+    }
+    return false;
+  }
+
   public static function getAliasList(): array {
     return self::$alias;
   }
@@ -96,6 +109,10 @@ class Session {
     return $list;
   }
 
+  public static function count(): int {
+    return count(self::$sessions);
+  }
+
   public static function delete(int $id): bool {
     if ($id === self::$current) {
       self::selectSession(1, true);
@@ -149,6 +166,38 @@ class Session {
 
   public function id() {
     return $this->id;
+  }
+
+  public function hasRunningCommands(): bool {
+    foreach ($this->commands as $group) {
+      foreach ($group as $command) {
+        if (!$command->isNew() && $command->isRunning()) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  public function terminateRunningCommands(int $signal = SIGKILL): void {
+    foreach ($this->commands as $group) {
+      foreach ($group as $command) {
+        if ($command->isNew() || !$command->isRunning()) {
+          continue;
+        }
+        if ($command->isZoomed()) {
+          $command->toggleZoom(false);
+        }
+        if ($command->isScrolled()) {
+          $command->toggleScroll(false);
+        }
+        if ($command->isGrabbed()) {
+          $command->toggleGrab(false);
+        }
+        \MADIR\Pty\CommanderHandler::sendSignal($command->getCid(), $signal);
+        \MADIR\Pty\CommanderHandler::discardCommand($command->getCid());
+      }
+    }
   }
 
   public function setName($name) {
@@ -406,7 +455,10 @@ class Session {
       $output = '';
       return true;
     }
-    // exit: close session
+    if (preg_match('/^exit( |$)/', $commandString)) {
+      $output = $this->exitCommand($command);
+      return true;
+    }
     return false;
   }
 
