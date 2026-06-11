@@ -471,4 +471,15 @@ class Session {
     }
   }
 
+  public function multiplex($stream) {
+    foreach ($this->commands[$this->selected] as $command) {
+      $cid = $command->getCid();
+      \MADIR\Pty\CommanderHandler::sendInput($cid, $stream);
+    }
+  }
+
+  public function getGroup(): array {
+    return $this->commands[$this->selected];
+  }
+
 }

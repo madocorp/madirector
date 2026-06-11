@@ -61,9 +61,9 @@ class Controller {
           return true;
         }
         if ($command->isScrolled()) {
-          return self::enterNormalMode($command, $command->isZoomed());
+          return self::enterInputMode($command, $command->isZoomed());
         }
-        return self::enterScrollMode($command);
+        return self::enterInputMode($command);
       case \SPTK\SDLWrapper\Action::MOVE_FIRST:
         $session->firstCommand();
         self::listCommands();
@@ -236,6 +236,17 @@ class Controller {
         }
         self::refreshModes();
         return true;
+      case \SPTK\SDLWrapper\KeyCode::M:
+        if (!$command->isNew() && !$command->isGrabbed() && $command->isRunning()) {
+          $group = $session->getGroup();
+          foreach ($group as $gitem) {
+            $gitem->toggleMultiplexGrab(true);
+          }
+          $command->toggleMultiplex(true);
+          \SPTK\SDLWrapper\SDL::$instance->supressTextInput();
+          return self::enterInputMode($command);
+        }
+        return true;
     }
     return false;
   }
@@ -258,6 +269,12 @@ class Controller {
     if ($command->isGrabbed()) {
       if ($command->isZoomed()) {
         return self::enterScrollMode($command);
+      } else {
+        $session = \MADIR\Command\Session::getCurrent();
+        $group = $session->getGroup();
+        foreach ($group as $gitem) {
+          $gitem->toggleMultiplexGrab(false);
+        }
       }
       return self::enterNormalMode($command);
     }
@@ -287,6 +304,7 @@ class Controller {
     }
     $command->toggleGrab(false);
     $command->toggleScroll(false);
+    $command->toggleMultiplex(false);
     self::refreshModes();
     return true;
   }
