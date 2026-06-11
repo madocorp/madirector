@@ -582,6 +582,8 @@ class ScreenBuffer {
     $this->currentScreen = &$this->altScreen;
     $this->initScreen();
     $this->currentScreen = &$currentScreen;
+    $this->scrollRegionStart = 0;
+    $this->scrollRegionEnd = $rows - 1;
   }
 
 

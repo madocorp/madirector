@@ -79,6 +79,7 @@ class Command {
   public function end($returnValue) {
     $this->returnValue = $returnValue;
     $this->toggleGrab(false);
+    $this->toggleZoom(false);
     $this->terminal->releaseInput();
     $cmd = \SPTK\Element::firstByType('Command', $this->box);
     $cmd->removeClass('run');
@@ -150,11 +151,9 @@ class Command {
 
   public function toggleZoom($zoom = null) {
     if ($zoom === null) {
-      $this->zoom = !$this->zoom;
-    } else {
-      $this->zoom = $zoom;
+      $zoom = !$this->zoom;
     }
-    if ($this->zoom) {
+    if ($zoom && !$this->zoom) {
       $sizes = \MADIR\Screen\Controller::$sizes;
       if (empty($sizes)) {
         $this->zoom = false;
@@ -166,11 +165,13 @@ class Command {
       $this->terminal->addClass('zoom');
       $this->setSize($zoomRows, $zoomCols);
       $this->screenBuffer->invalidateScreen();
-    } else {
+    } else if (!$zoom && $this->zoom) {
       $this->box->addDescendant($this->terminal);
       $this->terminal->removeClass('zoom');
       $this->setSize($this->maxRows, $this->maxCols);
+      $this->screenBuffer->invalidateScreen();
     }
+    $this->zoom = $zoom;
   }
 
   public function getStatusString() {
