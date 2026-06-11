@@ -324,9 +324,6 @@ class Terminal extends Element {
 
   public function keyPressHandler($element, $event) {
     $keycombo = KeyCombo::resolve($event['mod'], $event['scancode'], $event['key']);
-    if ($keycombo === KeyCode::F12 || $keycombo === KeyCode::F11) {
-      return false;
-    }
     if ($this->inputGrab) {
       $stream = InputTranslator::translate(
         $event['key'],
