@@ -21,6 +21,7 @@ class Command {
   private $maxRows = 25;
   private $maxCols = 80;
   private $workingDirectory;
+  private $multiplex = false;
 
   public function __construct($command, $session, $internal, $boxSize = 1) {
     $this->command = $command;
@@ -73,7 +74,11 @@ class Command {
   }
 
   public function input($stream) {
-    \MADIR\Pty\CommanderHandler::sendInput($this->cid, $stream);
+    if ($this->multiplex) {
+      $this->session->multiplex($stream);
+    } else {
+      \MADIR\Pty\CommanderHandler::sendInput($this->cid, $stream);
+    }
   }
 
   public function end($returnValue) {
@@ -115,6 +120,14 @@ class Command {
 
   public function isZoomed() {
     return $this->zoom;
+  }
+
+  public function toggleMultiplex(?bool $multiplex = null): void {
+    if ($multiplex === null) {
+      $this->multiplex = !$this->multiplex;
+    } else {
+      $this->multiplex = $multiplex;
+    }
   }
 
   public function toggleGrab($grab = null) {
@@ -313,6 +326,16 @@ class Command {
       return $command;
     }
     return '';
+  }
+
+  public function toggleMultiplexGrab(bool $grab) {
+    if ($grab) {
+      if ($this->done === false) {
+        $this->box->addClass('grab', true);
+      }
+    } else {
+      $this->box->removeClass('grab', true);
+    }
   }
 
 }
