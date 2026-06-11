@@ -14,10 +14,9 @@ class Controller {
   const INTERACTIVE_PERIOD = 250;
   const INTERACTIVE_LIMIT = 120;
   const ACTIVE_LIMIT = 400;
+  const DOUBLE_SHIFT_LIMIT = 300;
 
   public static $sizes = [];
-  protected static $grabbedBeforeZoom = false;
-  protected static $scrolledBeforeZoom = false;
   protected static $heightChanged = false;
   protected static $outputHappened = false;
   protected static $lastOutput = 0;
@@ -27,6 +26,7 @@ class Controller {
   protected static $interactiveTill = 0;
   protected static $killPanel;
   protected static $searchPanel;
+  protected static $lastShiftRelease = 0;
 
   public static function init() {
     cli_set_process_title('MADIR');
@@ -44,64 +44,15 @@ class Controller {
   public static function keyPressHandler($element, $event) {
     $session = \MADIR\Command\Session::getCurrent();
     $command = $session->currentCommand();
-    switch (\SPTK\SDLWrapper\KeyCombo::resolve($event['mod'], $event['scancode'], $event['key'])) {
+    $keycombo = \SPTK\SDLWrapper\KeyCombo::resolve($event['mod'], $event['scancode'], $event['key']);
+    switch ($keycombo) {
       case \SPTK\SDLWrapper\Action::CLOSE:
         if ($command->isScrolled()) {
-          $command->toggleScroll(false);
-          self::listCommands();
+          return self::enterNormalMode($command, $command->isZoomed());
         }
         \SPTK\Element::refresh();
         return true;
-      case \SPTK\SDLWrapper\KeyCode::F12:
-        if ($command->isNew()) {
-          return true;
-        }
-        if ($event['mod'] & \SPTK\SDLWrapper\KeyModifier::SHIFT) {
-          if ($command->isGrabbed()) {
-            $command->toggleGrab(false);
-            $command->toggleScroll(true);
-          } else if ($command->isRunning()) {
-            $command->toggleGrab(true);
-            $command->toggleScroll(false);
-          }
-        } else if ($command->isZoomed()) {
-          $command->toggleZoom(false);
-          $command->toggleGrab(false);
-          $command->toggleScroll(false);
-        } else if ($command->isGrabbed()) {
-          $command->toggleGrab(false);
-        } else if ($command->isRunning()) {
-          $command->toggleScroll(false);
-          $command->toggleGrab(true);
-        }
-        self::listCommands();
-        \SPTK\Element::refresh();
-        return true;
-      case \SPTK\SDLWrapper\KeyCode::F11:
-        if ($command->isNew()) {
-          return true;
-        }
-        if ($command->isZoomed()) {
-          $command->toggleZoom(false);
-          if ($command->isRunning()) {
-            $command->toggleGrab(self::$grabbedBeforeZoom);
-          }
-          $command->toggleScroll(self::$scrolledBeforeZoom);
-        } else {
-          $command->toggleZoom(true);
-          self::$scrolledBeforeZoom = $command->isScrolled();
-          self::$grabbedBeforeZoom = $command->isGrabbed();
-          if (!$command->isScrolled() && !$command->isGrabbed()) {
-            if ($command->isRunning()) {
-              $command->toggleGrab(true);
-            } else {
-              $command->toggleScroll(true);
-            }
-          }
-        }
-        self::listCommands();
-        \SPTK\Element::refresh();
-        return true;
+
       case \SPTK\SDLWrapper\Action::DO_IT:
         if ($command->isNew()) {
           self::runCommand($command);
@@ -109,10 +60,10 @@ class Controller {
           \SPTK\Element::refresh();
           return true;
         }
-        $command->toggleScroll();
-        self::listCommands();
-        \SPTK\Element::refresh();
-        return true;
+        if ($command->isScrolled()) {
+          return self::enterNormalMode($command, $command->isZoomed());
+        }
+        return self::enterScrollMode($command);
       case \SPTK\SDLWrapper\Action::MOVE_FIRST:
         $session->firstCommand();
         self::listCommands();
@@ -252,8 +203,97 @@ class Controller {
           \SPTK\Element::refresh();
         }
         return true;
+      case \SPTK\SDLWrapper\KeyCode::I:
+        if (!$command->isNew() && !$command->isGrabbed()) {
+          \SPTK\SDLWrapper\SDL::$instance->supressTextInput();
+          return self::enterInputMode($command);
+        }
+        return false;
+      case \SPTK\SDLWrapper\KeyCode::S:
+        if (!$command->isNew() && !$command->isGrabbed() && !$command->isScrolled()) {
+          \SPTK\SDLWrapper\SDL::$instance->supressTextInput();
+          return self::enterScrollMode($command);
+        }
+        return false;
+      case \SPTK\SDLWrapper\KeyCode::Z:
+        if ($command->isNew()) {
+          return false;
+        }
+        \SPTK\SDLWrapper\SDL::$instance->supressTextInput();
+        if ($command->isZoomed()) {
+          if ($command->isScrolled()) {
+            return self::enterNormalMode($command, true);
+          }
+          return true;
+        }
+        $command->toggleZoom(true);
+        if (!$command->isScrolled() && !$command->isGrabbed()) {
+          if ($command->isRunning()) {
+            $command->toggleGrab(true);
+          } else {
+            $command->toggleScroll(true);
+          }
+        }
+        self::refreshModes();
+        return true;
     }
     return false;
+  }
+
+  public static function keyReleaseHandler($element, $event) {
+    if ($event['scancode'] !== \SPTK\SDLWrapper\ScanCode::LSHIFT && $event['scancode'] !== \SPTK\SDLWrapper\ScanCode::RSHIFT) {
+      self::$lastShiftRelease = 0;
+      return false;
+    }
+    $now = microtime(true) * 1000;
+    if (self::$lastShiftRelease === 0 || $now - self::$lastShiftRelease > self::DOUBLE_SHIFT_LIMIT) {
+      self::$lastShiftRelease = $now;
+      return false;
+    }
+    self::$lastShiftRelease = 0;
+    $command = \MADIR\Command\Session::getCurrent()->currentCommand();
+    if ($command->isNew()) {
+      return false;
+    }
+    if ($command->isGrabbed()) {
+      if ($command->isZoomed()) {
+        return self::enterScrollMode($command);
+      }
+      return self::enterNormalMode($command);
+    }
+    return self::enterInputMode($command);
+  }
+
+  private static function enterInputMode($command) {
+    if (!$command->isRunning()) {
+      return true;
+    }
+    $command->toggleScroll(false);
+    $command->toggleGrab(true);
+    self::refreshModes();
+    return true;
+  }
+
+  private static function enterScrollMode($command) {
+    $command->toggleGrab(false);
+    $command->toggleScroll(true);
+    self::refreshModes();
+    return true;
+  }
+
+  private static function enterNormalMode($command, $zoomOut = false) {
+    if ($zoomOut) {
+      $command->toggleZoom(false);
+    }
+    $command->toggleGrab(false);
+    $command->toggleScroll(false);
+    self::refreshModes();
+    return true;
+  }
+
+  private static function refreshModes() {
+    self::listCommands();
+    \SPTK\Element::refresh();
   }
 
   private static function getBoxSize($n) {

@@ -1,4 +1,5 @@
 <Window title="MaDirector">
   <Event type="KeyPress">\MADIR\Screen\Controller::keyPressHandler</Event>
+  <Event type="KeyRelease">\MADIR\Screen\Controller::keyReleaseHandler</Event>
   <Event type="WindowReady">\MADIR\Screen\Controller::init</Event>
 </Window>
