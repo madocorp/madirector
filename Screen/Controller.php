@@ -209,6 +209,7 @@ class Controller {
           return self::enterInputMode($command);
         }
         return false;
+      case \SPTK\SDLWrapper\Action::DELETE_BACK:
       case \SPTK\SDLWrapper\KeyCode::S:
         if (!$command->isNew() && !$command->isGrabbed() && !$command->isScrolled()) {
           \SPTK\SDLWrapper\SDL::$instance->supressTextInput();

@@ -7,6 +7,8 @@ use \SPTK\Font;
 use \SPTK\Texture;
 use \SPTK\SDLWrapper\KeyCode;
 use \SPTK\SDLWrapper\KeyCombo;
+use \SPTK\SDLWrapper\KeyModifier;
+use \SPTK\SDLWrapper\ScanCode;
 use \SPTK\SDLWrapper\Action;
 use \SPTK\SDLWrapper\SDL;
 use \SPTK\SDLWrapper\TTF;
@@ -169,12 +171,8 @@ class Terminal extends Element {
         $attr = $cell[ScreenBuffer::ATTR];
         $reversed = ($attr & ScreenBuffer::A_REVERSE) > 0;
         $bgColor = false;
-        if ($this->scrollMode) {
-          $beforeStart = ($i + $this->scrollOffset < $row1) || ($i + $this->scrollOffset == $row1 && $j < $col1);
-          $afterEnd    = ($i + $this->scrollOffset > $row2) || ($i + $this->scrollOffset == $row2 && $j >= $col2);
-          if (!$beforeStart && !$afterEnd) {
-            $bgColor = 0xffff00;
-          }
+        if ($this->scrollMode && $this->inSelection($i, $j, $row1, $col1, $row2, $col2)) {
+          $bgColor = 0xffff00;
         }
         if ($bgColor === false) {
           if ($cursor !== false && $i == $cursor[0] && $j == $cursor[1]) {
@@ -208,12 +206,8 @@ class Terminal extends Element {
         $attr = $cell[ScreenBuffer::ATTR];
         $reversed = ($attr & ScreenBuffer::A_REVERSE) > 0;
         $fgColor = false;
-        if ($this->scrollMode) {
-          $beforeStart = ($i + $this->scrollOffset < $row1) || ($i + $this->scrollOffset == $row1 && $j < $col1);
-          $afterEnd    = ($i + $this->scrollOffset > $row2) || ($i + $this->scrollOffset == $row2 && $j >= $col2);
-          if (!$beforeStart && !$afterEnd) {
-            $fgColor = 0x000000;
-          }
+        if ($this->scrollMode && $this->inSelection($i, $j, $row1, $col1, $row2, $col2)) {
+          $fgColor = 0x000000;
         }
         if ($fgColor === false) {
           if ($cursor !== false && $i == $cursor[0] && $j == $cursor[1]) {
@@ -250,6 +244,22 @@ class Terminal extends Element {
       }
     }
     $this->buffer->saveScreen();
+  }
+
+  protected function inSelection($i, $j, $row1, $col1, $row2, $col2) {
+    $i += $this->scrollOffset;
+    if ($this->cursor->freeSelection()) {
+      if ($i >= $row1 && $i <= $row2 && $j >= $col1 && $j < $col2) {
+        return true;
+      }
+    } else {
+      $beforeStart = ($i < $row1) || ($i == $row1 && $j < $col1);
+      $afterEnd = ($i > $row2) || ($i == $row2 && $j >= $col2);
+      if (!$beforeStart && !$afterEnd) {
+        return true;
+      }
+    }
+    return false;
   }
 
   protected function renderGlyph($glyph) {
@@ -323,7 +333,6 @@ class Terminal extends Element {
   }
 
   public function keyPressHandler($element, $event) {
-    $keycombo = KeyCombo::resolve($event['mod'], $event['scancode'], $event['key']);
     if ($this->inputGrab) {
       $stream = InputTranslator::translate(
         $event['key'],
@@ -342,6 +351,18 @@ class Terminal extends Element {
       }
       return true;
     } else if ($this->scrollMode) {
+      $modifier = $event['mod'];
+      $arrow = in_array($event['scancode'], [ScanCode::LEFT, ScanCode::RIGHT, ScanCode::UP, ScanCode::DOWN], true);
+      $ctrl = ($modifier & KeyModifier::CTRL) !== 0;
+      $shift = ($modifier & KeyModifier::SHIFT) !== 0;
+      $otherModifier = ($modifier & (KeyModifier::ALT | KeyModifier::GUI)) !== 0;
+      if ($arrow && $shift && !$otherModifier) {
+        $this->cursor->freeSelection($ctrl);
+        if ($ctrl) {
+          $modifier &= ~KeyModifier::CTRL;
+        }
+      }
+      $keycombo = KeyCombo::resolve($modifier, $event['scancode'], $event['key']);
       $handled = $this->cursor->handleKeys($keycombo, $this->buffer->getRowCount() - 1, $this->buffer->getColCount());
       $this->cursor->save();
       if ($handled) {
