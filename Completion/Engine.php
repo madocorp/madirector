@@ -188,6 +188,10 @@ class Engine {
       $providers[] = 'Session';
       return $providers;
     }
+    if ($argv[0] === 'help') {
+      $providers[] = 'Help';
+      return $providers;
+    }
     if ($argv[0] === 'exit' && count($argv) > 2 && $argv[count($argv) - 2] === '-s') {
       $providers[] = 'Session';
       return $providers;

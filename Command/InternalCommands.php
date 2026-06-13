@@ -4,6 +4,66 @@ namespace MADIR\Command;
 
 trait InternalCommands {
 
+  private function help($command) {
+    $argument = trim(substr($command, 4));
+    switch ($argument) {
+      case "":
+        return "\e[1;37mhelp about\e[0m    Short description and Unlicense.\n"
+          . "\e[1;37mhelp key\e[0m      Keyboard shortcuts.\n"
+          . "\e[1;37mhelp command\e[0m  Shell syntax and internal commands.\n";
+      case "about":
+        $appDir = dirname(APP_PATH);
+        $license = file_get_contents("{$appDir}/UNLICENSE");
+        if ($license === false) {
+          $license = "The UNLICENSE file could not be read.";
+        }
+        return "\e[1;37mMaDirector is a terminal emulator with an integrated command shell and\n"
+          . "session manager. It supports interactive applications, pipelines,\n"
+          . "redirections, and multiple concurrent sessions, helping you keep related\n"
+          . "tasks together and easily sitch between them.\e[0m\n\n" . rtrim($license) . "\n";
+      case "key":
+        return "\e[1;37mKeyboard shortcuts\e[0m\n"
+          . "Enter                   Run a command or enter input mode.\n"
+          . "Escape                  Leave scroll mode.\n"
+          . "Up/Down                 Browse history or commands.\n"
+          . "Left/Right              Move within a command group.\n"
+          . "Home/End                Select the first or last command.\n"
+          . "Page Up/Page Down       Select the previous or next command.\n"
+          . "Ctrl+Left/Ctrl+Right    Switch sessions.\n"
+          . "Tab                     Complete a command or argument.\n"
+          . "Delete                  Stop or remove a command.\n"
+          . "Ctrl+C/Ctrl+V/Ctrl+A    Copy, paste, or copy command and output.\n"
+          . "I                       Enter input mode.\n"
+          . "S or Backspace          Enter or leave scroll mode.\n"
+          . "Z                       Toggle zoom.\n"
+          . "M                       Send input to all commands in the group.\n"
+          . "Double Shift            Toggle input and normal mode.\n"
+          . "F/B/N                   Search/previous/next in scroll mode.\n";
+      case "command":
+        return "\e[1;37mShell syntax\e[0m\n"
+          . "cmd1 | cmd2             Pipe commands.\n"
+          . "cmd1 && cmd2            Continue after success.\n"
+          . "cmd1 || cmd2            Continue after failure.\n"
+          . "cmd1 ; cmd2             Run in sequence.\n"
+          . "cmd1 & cmd2             Run in parallel.\n"
+          . "< > >> 2>              Redirect input or output.\n"
+          . "\"text\"                  Quote one argument.\n"
+          . "\$name                   Expand a variable.\n\n"
+          . "\e[1;37mInternal commands\e[0m\n"
+          . "cd       Change or print the working directory.\n"
+          . "set      Manage environment variables.\n"
+          . "alias    Manage command aliases.\n"
+          . "session  Manage sessions. Alias: s.\n"
+          . "help     Show MaDirector help.\n"
+          . "exit     Close sessions or quit MaDirector.\n"
+          . "\$name=x  Set or unset a shell variable.\n"
+          . "ID       Switch to a numeric session ID.\n"
+          . "Run an internal command without arguments for detailed usage.\n";
+      default:
+        return "Unknown help topic \"{$argument}\".\nUse \e[1;37mhelp\e[0m to list topics.\n";
+    }
+  }
+
   private function changeDir($command) {
     switch ($command) {
       case 'cd':
