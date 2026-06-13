@@ -444,6 +444,10 @@ class Session {
       $output = $this->session($commandString);
       return true;
     }
+    if (preg_match('/^help( |$)/', $commandString)) {
+      $output = $this->help($commandString);
+      return true;
+    }
     if (preg_match('/^[0-9]+$/', $commandString)) {
       $output = $this->session("session {$commandString}");
       return true;

@@ -215,6 +215,9 @@ class Controller {
           \SPTK\SDLWrapper\SDL::$instance->supressTextInput();
           return self::enterScrollMode($command);
         }
+        if ($command->isScrolled()) {
+          return self::enterNormalMode($command, $command->isZoomed());
+        }
         return false;
       case \SPTK\SDLWrapper\KeyCode::Z:
         if ($command->isNew()) {
