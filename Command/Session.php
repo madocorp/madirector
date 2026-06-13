@@ -121,6 +121,7 @@ class Session {
       self::selectSession(-1, true);
     }
     if ($id === self::$current) {
+      self::$sessions[$id]->clear();
       return false;
     }
     unset(self::$sessions[$id]);
