@@ -446,4 +446,8 @@ class Terminal extends Element {
     return $this->letterHeight;
   }
 
+  public function getCursorPosition() {
+    return $this->buffer->getCursorPosition();
+  }
+
 }
