@@ -90,8 +90,19 @@ class Terminal extends Element {
     }
   }
 
+  public function addDescendant($element) {
+    parent::addDescendant($element);
+    $this->changed = true;
+  }
+
+  public function removeDescendant($element) {
+    parent::removeDescendant($element);
+    $this->changed = true;
+  }
+
   public function setBuffer($buffer) {
     $this->buffer = $buffer;
+    $this->buffer->setTerminal($this);
     $this->search = new \MADIR\Command\Search($this->buffer, $this->cursor);
   }
 
@@ -132,6 +143,12 @@ class Terminal extends Element {
   }
 
   protected function calculateHeights() {
+    if ($this->display === false) {
+      return;
+    }
+    foreach ($this->descendants as $descendant) {
+      $descendant->calculateHeights();
+    }
     if ($this->geometry->height === 'calculated') {
       $rows = $this->buffer->countVisibleLines();
       $h = $rows * $this->letterHeight;
@@ -162,9 +179,10 @@ class Terminal extends Element {
     if ($this->scrollMode) {
       $this->cursor->toCoordinates($row1, $col1, $row2, $col2);
     }
+    $hasImages = !empty($this->stack);
     foreach ($rows as $i => $row) {
       foreach ($row as $j => $cell) {
-        if (!$this->scrollMode && !$this->buffer->cellChanged($i, $j)) {
+        if (!$hasImages && !$this->scrollMode && !$this->buffer->cellChanged($i, $j)) {
           continue;
         }
         $glyph = $cell[ScreenBuffer::GLYPH];
@@ -196,10 +214,22 @@ class Terminal extends Element {
         $sdl->SDL_RenderFillRect($this->renderer, self::$sdlFRect2Addr);
       }
     }
+    if ($hasImages) {
+      foreach ($this->stack as $image) {
+        if ($image->display === false || $image->clipped) {
+          continue;
+        }
+        $image->redraw();
+        $texture = $image->render();
+        if ($texture !== false) {
+          $texture->copyTo($this->texture, $image->geometry->x - $this->scrollX, $image->geometry->y - $this->scrollY);
+        }
+      }
+    }
     $previousColor = false;
     foreach ($rows as $i => $row) {
       foreach ($row as $j => $cell) {
-        if (!$this->scrollMode && !$this->buffer->cellChanged($i, $j)) {
+        if (!$hasImages && !$this->scrollMode && !$this->buffer->cellChanged($i, $j)) {
           continue;
         }
         $glyph = $cell[ScreenBuffer::GLYPH];
