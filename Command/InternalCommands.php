@@ -6,18 +6,19 @@ trait InternalCommands {
 
   private function help($command) {
     $argument = trim(substr($command, 4));
+    $appDir = dirname(APP_PATH);
     switch ($argument) {
       case "":
         return "\e[1;37mhelp about\e[0m    Short description and Unlicense.\n"
           . "\e[1;37mhelp key\e[0m      Keyboard shortcuts.\n"
           . "\e[1;37mhelp command\e[0m  Shell syntax and internal commands.\n";
       case "about":
-        $appDir = dirname(APP_PATH);
         $license = file_get_contents("{$appDir}/UNLICENSE");
         if ($license === false) {
           $license = "The UNLICENSE file could not be read.";
         }
-        return "\e[1;37mMaDirector is a terminal emulator with an integrated command shell and\n"
+        return "\e_Ga=T,t=f,i=42;" . base64_encode("{$appDir}/Layout/madir.png") . "\e\\"
+          . "\e[1;37mMaDirector is a terminal emulator with an integrated command shell and\n"
           . "session manager. It supports interactive applications, pipelines,\n"
           . "redirections, and multiple concurrent sessions, helping you keep related\n"
           . "tasks together and easily sitch between them.\e[0m\n\n" . rtrim($license) . "\n";
