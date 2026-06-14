@@ -17,6 +17,7 @@ class ANSIParser {
   public $screen;
   public $state = self::GROUND;
   public $buffer = '';
+  public $utf8Buffer = '';
   public $seqLen = 0;
   public $charset = self::ASCII;
 
@@ -168,13 +169,13 @@ class ANSIParser {
 
   public function parseUTF8($str) {
     $out = [];
-    $this->buffer .= $str;
+    $this->utf8Buffer .= $str;
     $i = 0;
-    $len = strlen($this->buffer);
+    $len = strlen($this->utf8Buffer);
     while ($i < $len) {
-      $byte = ord($this->buffer[$i]);
+      $byte = ord($this->utf8Buffer[$i]);
       if ($byte <= 0x7F) {
-        $out[] = $this->buffer[$i];
+        $out[] = $this->utf8Buffer[$i];
         $i++;
         continue;
       }
@@ -194,7 +195,7 @@ class ANSIParser {
       }
       $valid = true;
       for ($j = 1; $j < $this->seqLen; $j++) {
-        if ((ord($this->buffer[$i + $j]) & 0xC0) !== 0x80) {
+        if ((ord($this->utf8Buffer[$i + $j]) & 0xC0) !== 0x80) {
           $valid = false;
           break;
         }
@@ -204,11 +205,11 @@ class ANSIParser {
         $i++;
         continue;
       }
-      $out[] = substr($this->buffer, $i, $this->seqLen);
+      $out[] = substr($this->utf8Buffer, $i, $this->seqLen);
       $i += $this->seqLen;
       $this->seqLen = 0;
     }
-    $this->buffer = substr($this->buffer, $i);
+    $this->utf8Buffer = substr($this->utf8Buffer, $i);
     return $out;
   }
 
@@ -381,10 +382,13 @@ class ANSIParser {
   }
 
   public function executeAPC() {
-    echo "APC: {$this->buffer}\n";
     $sub = substr($this->buffer, 0, 1);
     if ($sub === 'G') {
-      Picture::parseAnsii($sub);
+      $sequence = substr($this->buffer, 1);
+      if (substr($sequence, -1) === "\e") {
+        $sequence = substr($sequence, 0, -1);
+      }
+      Picture::parseAnsii($sequence, $this->screen->getTerminal());
     }
   }
 

@@ -35,6 +35,7 @@ class ScreenBuffer {
   protected $bg = 0x000000;
   protected $attrs = 0;
   protected $parser;
+  protected $terminal;
   protected $applicationCursor = false;
   protected $applicationKeypad = false;
   protected $otherScreenState = false;
@@ -59,6 +60,14 @@ class ScreenBuffer {
 
   public function parse($output) {
     $this->parser->parse($output);
+  }
+
+  public function setTerminal($terminal) {
+    $this->terminal = $terminal;
+  }
+
+  public function getTerminal() {
+    return $this->terminal;
   }
 
   protected function emptyCell() {
