@@ -75,7 +75,7 @@ class Picture {
 
   private static function transmit($command) {
     $id = self::$nextId++;
-    $command['imageNumber'] = $id;
+    $command['imageId'] = $id;
     $command['images'] = [];
     self::$pictures[$id] = $command;
     return $command;
@@ -83,17 +83,31 @@ class Picture {
 
   private static function place($command, $terminal) {
     $id = self::getId($command);
+    if ($id === null) {
+      return;
+    }
+    $command = array_merge(self::$pictures[$id], $command);
     $image = new \SPTK\Elements\Image($terminal);
-    if ($command['transmission'] === 'f') {
+    if (($command['transmission'] ?? 'd') === 'f') {
       $image->setValue(base64_decode($command['data']));
-    } else if ($command['transmission'] === 'd') {
+    } else if (($command['transmission'] ?? 'd') === 'd') {
       $image->setBase64($command['data'] ?? '');
     }
+    [$row, $column] = $terminal->getCursorPosition();
+    $x = $column * $terminal->getLetterWidth() + (int)($command['cellXOffset'] ?? 0);
+    $y = $row * $terminal->getLetterHeight() + (int)($command['cellYOffset'] ?? 0);
+    $style = $image->getStyle();
+    $style->set('position', 'absolute');
+    $style->set('x', "{$x}px");
+    $style->set('y', "{$y}px");
     self::$pictures[$id]['images'][] = $image;
   }
 
   private static function delete($command) {
     $id = self::getId($command);
+    if ($id === null) {
+      return;
+    }
     $picture = self::$pictures[$id];
     foreach ($picture['images'] as $image) {
       $image->remove();
@@ -102,12 +116,14 @@ class Picture {
   }
 
   private static function getId($command) {
-    if (isset($command['imageNumber'])) {
-      return $command['imageNumber'];
-    }
     if (isset($command['imageId'])) {
-      foreach (self::$pictures as $id => $picture) {
-        if ($picture['imageId'] === $command['imageId']) {
+      $id = $command['imageId'];
+      return isset(self::$pictures[$id]) ? $id : null;
+    }
+    if (isset($command['imageNumber'])) {
+      $pictures = array_reverse(self::$pictures, true);
+      foreach ($pictures as $id => $picture) {
+        if (($picture['imageNumber'] ?? null ) === $command['imageNumber']) {
           return $id;
         }
       }

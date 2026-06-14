@@ -584,6 +584,10 @@ class ScreenBuffer {
     return false;
   }
 
+  public function getCursorPosition() {
+    return [$this->row, $this->col];
+  }
+
   public function setSize($rows, $cols) {
     $this->rows = $rows;
     $this->cols = $cols;
