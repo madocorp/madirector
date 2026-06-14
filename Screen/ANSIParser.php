@@ -9,6 +9,7 @@ class ANSIParser {
   const CSI = 2;
   const OSC = 3;
   const CHARSET = 4;
+  const APC = 5;
 
   const ASCII = 0;
   const DEC = 1;
@@ -104,6 +105,8 @@ class ANSIParser {
           } elseif ($pu === 'E') {
             $this->screen->linefeed();
             $this->state = self::GROUND;
+          } elseif ($pu === '_') {
+            $this->state = self::APC;
           } else {
             // DEBUG:9 echo "UKNOWN ESCAPE SEQUENCE {$pu}\n";
             $this->state = self::GROUND;
@@ -140,6 +143,21 @@ class ANSIParser {
             $this->state = self::GROUND;
             $this->buffer = '';
           } else {
+            $this->buffer .= $pu;
+          }
+          break;
+        case self::APC:
+          if (ord($pu) === 0x5c && ord(substr($this->buffer, -1)) === 0x1b) { // ST
+            // DEBUG:9 echo "{$this->buffer} APC ";
+            $this->executeAPC();
+            $this->state = self::GROUND;
+            $this->buffer = '';
+          } else if (ord($pu) === 0x9c) { // ST
+            // DEBUG:9 echo "{$this->buffer} APC ";
+            $this->executeAPC();
+            $this->state = self::GROUND;
+            $this->buffer = '';
+          } else{
             $this->buffer .= $pu;
           }
           break;
@@ -359,6 +377,14 @@ class ANSIParser {
           $this->screen->setCurrentBuffer(0);
         }
         break;
+    }
+  }
+
+  public function executeAPC() {
+    echo "APC: {$this->buffer}\n";
+    $sub = substr($this->buffer, 0, 1);
+    if ($sub === 'G') {
+      Picture::parseAnsii($sub);
     }
   }
 
