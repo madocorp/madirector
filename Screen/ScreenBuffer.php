@@ -43,6 +43,7 @@ class ScreenBuffer {
   protected $fill = false;
   protected $pendingWrap = false;
   protected $lastChar = false;
+  protected $contentCols = false;
 
   public function __construct($rows, $cols) {
     $this->rows = $rows;
@@ -524,6 +525,10 @@ class ScreenBuffer {
     }
   }
 
+  public function getContentColCount() {
+    return $this->contentCols;
+  }
+
   public function countVisibleLines() {
     if (!$this->fill && !$this->altScreenActive) {
       return min($this->rows, $this->mainHeight);
@@ -589,6 +594,12 @@ class ScreenBuffer {
   }
 
   public function setSize($rows, $cols) {
+    if ($cols !== $this->cols) {
+      $this->contentCols = 0;
+      foreach ($this->getLines() as $line) {
+        $this->contentCols = max($this->contentCols, mb_strlen($line));
+      }
+    }
     $this->rows = $rows;
     $this->cols = $cols;
     $currentScreen = &$this->currentScreen;
