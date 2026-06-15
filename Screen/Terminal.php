@@ -43,6 +43,7 @@ class Terminal extends Element {
   protected $cursor;
   protected $textureWidth;
   protected $textureHeight;
+  protected $clearTexture = false;
   public $search;
 
   public function init() {
@@ -125,6 +126,11 @@ class Terminal extends Element {
 
   public function scrollOff() {
     $this->scrollMode = false;
+    if ($this->scrollX !== 0) {
+      $this->scrollX = 0;
+      $this->clearTexture = true;
+      $this->changed = true;
+    }
   }
 
   public function refreshScroll() {
@@ -158,6 +164,15 @@ class Terminal extends Element {
     $this->geometry->setContentHeight($this->lineHeight, $this->geometry->height - $this->geometry->paddingBottom - $this->geometry->borderBottom);
   }
 
+  protected function layout() {
+    parent::layout();
+    $contentCols = $this->buffer->getContentColCount();
+    if ($contentCols !== false) {
+      $this->geometry->contentWidth = ($contentCols + 1) * $this->letterWidth;
+      $this->scrollX = min($this->scrollX, max(0, $this->geometry->contentWidth - $this->geometry->innerWidth));
+    }
+  }
+
   protected function draw() {
     $sdl = SDL::$instance->sdl;
     if (
@@ -170,6 +185,11 @@ class Terminal extends Element {
       $this->textureHeight = $this->geometry->height;
     }
     $this->texture->activate();
+    if ($this->clearTexture) {
+      $sdl->SDL_SetRenderDrawColor($this->renderer, 0, 0, 0, 0xff);
+      $sdl->SDL_RenderClear($this->renderer);
+      $this->clearTexture = false;
+    }
     $rows = $this->buffer->getRows($this->scrollOffset);
     $cursor = $this->buffer->getCursor();
     $cw = $this->letterWidth;
@@ -199,7 +219,7 @@ class Terminal extends Element {
             $bgColor = $cell[$reversed ? ScreenBuffer::FG : ScreenBuffer::BG];
           }
         }
-        self::$sdlFRect2->x = (float)($j * $cw + $this->geometry->paddingLeft + $this->geometry->borderLeft);
+        self::$sdlFRect2->x = (float)($j * $cw + $this->geometry->paddingLeft + $this->geometry->borderLeft - $this->scrollX);
         self::$sdlFRect2->y = (float)($i * $ch + $this->geometry->paddingTop + $this->geometry->borderTop);
         self::$sdlFRect2->w = (float)$cw;
         self::$sdlFRect2->h = (float)$ch;
@@ -211,6 +231,19 @@ class Terminal extends Element {
           $sdl->SDL_SetRenderDrawColor($this->renderer, $r, $g, $b, $a);
         }
         $previousColor = $bgColor;
+        $sdl->SDL_RenderFillRect($this->renderer, self::$sdlFRect2Addr);
+      }
+    }
+    if ($this->scrollMode) {
+      $selectionCursor = $this->cursor->get();
+      $cursorRow = $selectionCursor[0] - $this->scrollOffset;
+      $cursorCol = $selectionCursor[1];
+      if (isset($rows[$cursorRow]) && $cursorCol >= count($rows[$cursorRow])) {
+        self::$sdlFRect2->x = (float)($cursorCol * $cw + $this->geometry->paddingLeft + $this->geometry->borderLeft - $this->scrollX);
+        self::$sdlFRect2->y = (float)($cursorRow * $ch + $this->geometry->paddingTop + $this->geometry->borderTop);
+        self::$sdlFRect2->w = (float)$cw;
+        self::$sdlFRect2->h = (float)$ch;
+        $sdl->SDL_SetRenderDrawColor($this->renderer, 0xff, 0xff, 0x00, 0xff);
         $sdl->SDL_RenderFillRect($this->renderer, self::$sdlFRect2Addr);
       }
     }
@@ -266,7 +299,7 @@ class Terminal extends Element {
         self::$sdlFRect1->y = (float)$glyphMap[1] - self::MAP_PAD + $this->lineOffset;
         self::$sdlFRect1->w = (float)$cw + self::MAP_PAD * 2;
         self::$sdlFRect1->h = (float)$ch + self::MAP_PAD * 2;
-        self::$sdlFRect2->x = (float)($j * $cw + $this->geometry->paddingLeft + $this->geometry->borderLeft) - self::MAP_PAD;
+        self::$sdlFRect2->x = (float)($j * $cw + $this->geometry->paddingLeft + $this->geometry->borderLeft - $this->scrollX) - self::MAP_PAD;
         self::$sdlFRect2->y = (float)($i * $ch + $this->geometry->paddingTop + $this->geometry->borderTop) - self::MAP_PAD;
         self::$sdlFRect2->w = (float)$cw + self::MAP_PAD * 2;
         self::$sdlFRect2->h = (float)$ch + self::MAP_PAD * 2;
@@ -347,11 +380,13 @@ class Terminal extends Element {
       return false;
     }
     new \SPTK\Border($this->texture, $this->geometry, $this->ancestor->geometry, $this->style);
-    new \SPTK\Scrollbar($this->texture, 0, $this->scrollOffset * $this->letterHeight, $this->geometry->contentWidth, $this->buffer->countLines() * $this->letterHeight, $this->geometry, $this->style);
+    new \SPTK\Scrollbar($this->texture, $this->scrollX, $this->scrollOffset * $this->letterHeight, $this->geometry->contentWidth, $this->buffer->countLines() * $this->letterHeight, $this->geometry, $this->style);
     return $this->texture;
   }
 
   public function scrollToCursor() {
+    $previousScrollOffset = $this->scrollOffset;
+    $previousScrollX = $this->scrollX;
     $c = $this->cursor->get();
     $rows = $this->buffer->countVisibleLines() - 1;
     if ($c[0] < $this->scrollOffset) {
@@ -359,6 +394,18 @@ class Terminal extends Element {
     }
     if ($c[0] > $this->scrollOffset + $rows) {
       $this->scrollOffset = $c[0] - $rows;
+    }
+    $cursorLeft = $c[1] * $this->letterWidth;
+    $cursorRight = $cursorLeft + $this->letterWidth;
+    if ($cursorLeft < $this->scrollX) {
+      $this->scrollX = $cursorLeft;
+    } else if ($cursorRight > $this->scrollX + $this->geometry->innerWidth) {
+      $this->scrollX = $cursorRight - $this->geometry->innerWidth;
+    }
+    $this->scrollX = min($this->scrollX, max(0, $this->geometry->contentWidth - $this->geometry->innerWidth));
+    if ($this->scrollMode || $this->scrollOffset !== $previousScrollOffset || $this->scrollX !== $previousScrollX) {
+      $this->clearTexture = true;
+      $this->changed = true;
     }
   }
 
