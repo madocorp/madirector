@@ -11,6 +11,7 @@ class Session {
   public static $alias = [
     'ls' => 'ls --color=auto'
   ];
+  private static $aliasLoaded = false;
 
   public static function getCurrent(): Session {
     return self::$sessions[self::$current];
@@ -30,7 +31,40 @@ class Session {
   }
 
   public static function getAliasList(): array {
+    self::loadAlias();
     return self::$alias;
+  }
+
+  private static function getAliasFilePath(): string {
+    return \SPTK\Config::getFilePath('alias.json');
+  }
+
+  private static function loadAlias(): void {
+    if (self::$aliasLoaded) {
+      return;
+    }
+    self::$aliasLoaded = true;
+    $file = self::getAliasFilePath();
+    if (!\SPTK\Config::exists($file)) {
+      return;
+    }
+    $alias = \SPTK\Config::load($file);
+    if (!is_array($alias)) {
+      return;
+    }
+    self::$alias = [];
+    foreach ($alias as $name => $value) {
+      if (is_string($name) && is_string($value)) {
+        self::$alias[$name] = $value;
+      }
+    }
+  }
+
+  public static function saveAlias(): bool {
+    self::loadAlias();
+    $file = self::getAliasFilePath();
+    ksort(self::$alias, SORT_STRING);
+    return \SPTK\Config::save($file, self::$alias);
   }
 
   public static function selectSession(int $s, bool $relative = false): void {

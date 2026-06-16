@@ -95,10 +95,12 @@ class CommandParser {
     $argv = [];
     $redirects = [];
     $startPos = false;
+    $appendArg = false;
     $resolvedAliases = [];
     while ($this->pos < $this->len) {
       if ($this->peekType() === 'WHITESPACE') {
         $this->pos++;
+        $appendArg = false;
         continue;
       }
       if (in_array($this->peekType(), ['PIPE', 'COMMAND_SEPARATOR', 'PARALLEL_SEPARATOR', 'AND', 'OR'], true)) {
@@ -106,14 +108,20 @@ class CommandParser {
       }
       if (in_array($this->peekType(), ['REDIRECT', 'REDIRECT_APPEND', 'REDIRECT_INPUT', 'REDIRECT_STDERR', 'REDIRECT_STDERR_STDOUT'], true)) {
         $redirects[] = $this->redirect();
+        $appendArg = false;
         continue;
       }
       if ($startPos === false) {
         $startPos = $this->pos;
       }
       if ($this->peekType() === 'QUOTED_ARGV') {
-        $argv[] = $this->qargv();
-        $this->pos++;
+        $value = $this->qargv();
+        if ($appendArg && count($argv) > 0) {
+          $argv[count($argv) - 1] .= $value;
+        } else {
+          $argv[] = $value;
+        }
+        $appendArg = true;
         continue;
       }
       if ($startPos === $this->pos) {
@@ -127,10 +135,16 @@ class CommandParser {
       }
       if ($this->peekType() === 'VARIABLE') {
         $var = $this->peekValue();
-        $argv[] = $this->session->getvar($var);
+        $value = $this->session->getvar($var);
       } else {
-        $argv[] = $this->peekValue();
+        $value = $this->peekValue();
       }
+      if ($appendArg && count($argv) > 0) {
+        $argv[count($argv) - 1] .= $value;
+      } else {
+        $argv[] = $value;
+      }
+      $appendArg = true;
       $this->pos++;
     }
     return [

@@ -167,6 +167,7 @@ trait InternalCommands {
   }
 
   private function alias($command) {
+    self::getAliasList();
     if ($command === 'alias') {
       $help = "";
       $help .= "\e[1;37m\"alias\" is an internal command used to manage command aliases.\e[0m\n";
@@ -204,11 +205,17 @@ trait InternalCommands {
     } else {
       if (isset(self::$alias[$name])) {
         unset(self::$alias[$name]);
+        if (!self::saveAlias()) {
+          return "Could not save alias file.\n";
+        }
         return "unset alias \"\e[1;37m{$name}\e[0m\"\n";
       }
       return "Alias \"\e[1;37m{$name}\e0m\" not found.\n";
     }
     self::$alias[$name] = $value;
+    if (!self::saveAlias()) {
+      return "Could not save alias file.\n";
+    }
     return "Alias defined.\n\e[1;37m{$name} =\e[0m \"{$value}\"\n";
   }
 

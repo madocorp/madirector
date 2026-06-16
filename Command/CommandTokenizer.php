@@ -27,7 +27,7 @@ class CommandTokenizer extends \SPTK\Tokenizer {
     ['type' => 'REDIRECT_INPUT', 'regexp' => '/^</'],
     ['type' => 'WHITESPACE', 'regexp' => '/^\s/'],
     ['type' => 'VARIABLE', 'regexp' => '/^\$[A-Za-z_][A-Za-z0-9_]*/'],
-    ['type' => 'ARGV', 'regexp' => '/^[^&|;><\s]+/'],
+    ['type' => 'ARGV', 'regexp' => '/^[^"&|;><\s]+/'],
     ['type' => 'UNKNOWN', 'regexp' => '/^.+/']
   ];
 
