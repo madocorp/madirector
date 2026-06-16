@@ -53,7 +53,7 @@ class Engine {
     $window = \SPTK\Element::firstByType('Window');
     $completionWindow = \SPTK\Element::firstByType('CompletionWindow', $window);
     if ($completionWindow === false) {
-      $completionWindow = new \SPTK\Element($window, false, false, 'CompletionWindow');
+      $completionWindow = new \SPTK\Element($window, null, null, 'CompletionWindow');
       $completionWindow->addEvent('KeyPress', '\\MADIR\\Completion\\Engine::keyPressHandler');
       $style = $completionWindow->getStyle();
       $y = \MADIR\Screen\Controller::$sizes['commandHeight'];
@@ -67,14 +67,14 @@ class Engine {
     }
     $firstBox = false;
     foreach ($results as $type => $candidates) {
-      $container = new \SPTK\Element($completionWindow, false, false, 'ListBoxContainer');
+      $container = new \SPTK\Element($completionWindow, null, null, 'ListBoxContainer');
       $overflow = '';
       if (isset($candidates['overflow'])) {
         $overflow = $candidates['overflow'];
         unset($candidates['overflow']);
       }
       $container->setText("{$type}:\n");
-      $listBox = new \SPTK\Elements\ListBox($container, false, 'completion-list');
+      $listBox = new \SPTK\Elements\ListBox($container, null, 'completion-list');
       if ($firstBox === false) {
         $firstBox = $listBox;
       }

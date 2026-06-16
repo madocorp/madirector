@@ -46,7 +46,7 @@ class Terminal extends Element {
   protected $clearTexture = false;
   public $search;
 
-  public function init() {
+  public function init(): void {
     $this->acceptInput = true;
     $this->addEvent('KeyPress', [$this, 'keyPressHandler']);
     $this->addEvent('TextInput', [$this, 'textInputHandler']);
@@ -91,12 +91,12 @@ class Terminal extends Element {
     }
   }
 
-  public function addDescendant($element) {
+  public function addDescendant(Element $element): void {
     parent::addDescendant($element);
     $this->changed = true;
   }
 
-  public function removeDescendant($element) {
+  public function removeDescendant(Element $element): void {
     parent::removeDescendant($element);
     $this->changed = true;
   }
@@ -148,7 +148,7 @@ class Terminal extends Element {
     $this->cursor->save();
   }
 
-  protected function calculateHeights() {
+  protected function calculateHeights(): void {
     if ($this->display === false) {
       return;
     }
@@ -164,7 +164,7 @@ class Terminal extends Element {
     $this->geometry->setContentHeight($this->lineHeight, $this->geometry->height - $this->geometry->paddingBottom - $this->geometry->borderBottom);
   }
 
-  protected function layout() {
+  protected function layout(): void {
     parent::layout();
     $contentCols = $this->buffer->getContentColCount();
     if ($contentCols !== false) {
@@ -173,7 +173,7 @@ class Terminal extends Element {
     }
   }
 
-  protected function draw() {
+  protected function draw(): void {
     $sdl = SDL::$instance->sdl;
     if (
       $this->texture === false ||
@@ -372,7 +372,7 @@ class Terminal extends Element {
     // DEBUG:6 echo "New glyph on the atlas: {$glyph} [{$x}, {$y}]\n";
   }
 
-  protected function render() {
+  protected function render(): Texture|false {
     if ($this->display === false) {
       return false;
     }

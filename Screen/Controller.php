@@ -361,7 +361,7 @@ class Controller {
     $groupCursor = $session->getGroupCursor();
     $y = 0;
     foreach ($commands as $i => $command) {
-      $groupBox = new \SPTK\Element($window, false, false, 'CommandGroup');
+      $groupBox = new \SPTK\Element($window, null, null, 'CommandGroup');
       $style = $groupBox->getStyle();
       $style->set('y', "-{$y}px");
       foreach ($command as $j => $gcommand) {
