@@ -8,7 +8,7 @@ class Cursor extends \SPTK\Elements\TextEditor\Cursor {
     $this->lines = [''];
   }
 
-  public function setLines($lines) {
+  public function setLines(array $lines): void {
     $this->lines = $lines;
   }
 

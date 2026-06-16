@@ -45,7 +45,7 @@ class Session {
     }
     self::$aliasLoaded = true;
     $file = self::getAliasFilePath();
-    if (!\SPTK\Config::exists($file)) {
+    if (!file_exists($file)) {
       return;
     }
     $alias = \SPTK\Config::load($file);

@@ -208,14 +208,14 @@ class Command {
   private function createCommandLine() {
     $this->done = true;
     $window = \SPTK\Element::firstByType('Window');
-    $block = new \SPTK\Element($window, 'newCommand', false, 'CommandBlock');
+    $block = new \SPTK\Element($window, 'newCommand', null, 'CommandBlock');
     $this->box = $block;
-    $info = new \SPTK\Element($block, false, false, 'CommandInfo');
+    $info = new \SPTK\Element($block, null, null, 'CommandInfo');
     $this->refreshCommandLine();
-    $cmd = new \SPTK\Element($block, false, 'new', 'Command');
-    $label = new \SPTK\Element($cmd, false, 'prompt', 'Label');
+    $cmd = new \SPTK\Element($block, null, 'new', 'Command');
+    $label = new \SPTK\Element($cmd, null, 'prompt', 'Label');
     $label->setText('>');
-    $input = new \SPTK\Elements\Input($label, false, 'cmd');
+    $input = new \SPTK\Elements\Input($label, null, 'cmd');
     $input->addClass('active', true);
   }
 
@@ -265,18 +265,18 @@ class Command {
 
   private function createCommandBox($boxSize) {
     $window = \SPTK\Element::firstByType('Window');
-    $block = new \SPTK\Element($window, false, false, 'CommandBlock');
+    $block = new \SPTK\Element($window, null, null, 'CommandBlock');
     $this->box = $block;
     if ($boxSize === 2) {
       $this->box->addClass('half');
     } else if ($boxSize === 3) {
       $this->box->addClass('third');
     }
-    $info = new \SPTK\Element($block, false, false, 'CommandInfo');
+    $info = new \SPTK\Element($block, null, null, 'CommandInfo');
     $this->refreshCommandLine();
-    $status = new \SPTK\Element($info, false, false, 'CommandStatus');
+    $status = new \SPTK\Element($info, null, null, 'CommandStatus');
     $status->setText($this->getStatusString());
-    $cmd = new \SPTK\Element($block, false, 'run', 'Command');
+    $cmd = new \SPTK\Element($block, null, 'run', 'Command');
     $cmd->setText('> ' . $this->command['commandString']);
     $this->terminal = new \MADIR\Screen\Terminal($block);
     $this->terminal->setBuffer($this->screenBuffer);
