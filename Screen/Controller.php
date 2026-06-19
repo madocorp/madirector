@@ -34,8 +34,9 @@ class Controller {
     new \MADIR\Command\Session(0);
     self::measureSize();
     $window = \SPTK\Element::firstByType('Window');
-    new \SPTK\LayoutXmlReader('Layout/kill.xml', $window);
-    new \SPTK\LayoutXmlReader('Layout/search.xml', $window);
+    $appDir = dirname(APP_PATH);
+    new \SPTK\LayoutXmlReader("{$appDir}/Layout/kill.xml", $window);
+    new \SPTK\LayoutXmlReader("{$appDir}/Layout/search.xml", $window);
     self::$killPanel = \SPTK\Element::ByName('kill', $window);
     self::$searchPanel = \SPTK\Element::ByName('search', $window);
     self::ListCommands();
@@ -134,12 +135,6 @@ class Controller {
       case \SPTK\SDLWrapper\Action::COPY:
         if (!$command->isNew()) {
           \SPTK\Clipboard::set($command->getCommandString(false));
-        }
-        return true;
-      case \SPTK\SDLWrapper\KeyCode::V:
-      case \SPTK\SDLWrapper\Action::PASTE:
-        if (!$command->isNew() && $command->isRunning()) {
-          $text = \SPTK\Clipboard::get();
         }
         return true;
       case \SPTK\SDLWrapper\KeyCode::A:

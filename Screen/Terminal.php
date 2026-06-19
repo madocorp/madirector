@@ -466,11 +466,22 @@ class Terminal extends Element {
         case Action::PASTE:
           $paste = \SPTK\Clipboard::get();
           if ($paste !== false) {
-            call_user_func($this->inputCallback, $paster);
+            call_user_func($this->inputCallback, $paste);
           }
           return true;
         default:
           return false;
+      }
+    } else {
+      $keycombo = KeyCombo::resolve($event['mod'], $event['scancode'], $event['key']);
+      switch ($keycombo) {
+        case KeyCode::V:
+        case Action::PASTE:
+          $paste = \SPTK\Clipboard::get();
+          if ($paste !== false) {
+            call_user_func($this->inputCallback, $paste);
+          }
+          return true;
       }
     }
     return false;

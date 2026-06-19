@@ -11,6 +11,7 @@ class CommandParser {
   private $pos = 0;
   private $len;
   private $aliasCounter = 0;
+  private $aliasCommandStrings = [];
   private $resolve;
 
   public function __construct(Session $session, bool $resolve = true) {
@@ -21,6 +22,7 @@ class CommandParser {
   public function parse(string $commandString): array {
     $tokens = \MADIR\Command\CommandTokenizer::start([$commandString], "\MADIR\Command\CommandTokenizer");
     $this->tokens = $tokens[0]['tokens'];
+    $this->aliasCommandStrings = [];
     // DEBUG:4 echo "Command tokens: {$commandString}\n";
     // DEBUG:4 foreach ($this->tokens as $token) {
     // DEBUG:4  echo "  " . str_pad("[{$token['type']}]", 25) . "\"{$token['value']}\"\n";
@@ -40,6 +42,9 @@ class CommandParser {
         $str .= $this->tokens[$i]['value'];
       }
       $sequence = $this->sequence();
+      if (!empty($this->aliasCommandStrings)) {
+        $str = array_shift($this->aliasCommandStrings);
+      }
       $item = [
         'sequence' => $sequence,
         'commandString' => trim($str)
@@ -211,6 +216,7 @@ class CommandParser {
       return false;
     }
     $command = $aliasList[$command];
+    $this->addAliasCommandStrings($command);
     $tokens = \MADIR\Command\CommandTokenizer::start([$command], "\MADIR\Command\CommandTokenizer");
     $tokens = $tokens[0]['tokens'];
     array_splice($this->tokens, $this->pos, 1, $tokens);
@@ -220,6 +226,23 @@ class CommandParser {
       throw new \Exception('Infinite alias loop detected!');
     }
     return true;
+  }
+
+  private function addAliasCommandStrings(string $command): void {
+    $tokens = \MADIR\Command\CommandTokenizer::start([$command], "\MADIR\Command\CommandTokenizer");
+    $commands = [''];
+    foreach ($tokens[0]['tokens'] as $token) {
+      if ($token['type'] === 'PARALLEL_SEPARATOR') {
+        $commands[] = '';
+        continue;
+      }
+      $commands[count($commands) - 1] .= $token['value'];
+    }
+    if (count($commands) > 1) {
+      foreach ($commands as $command) {
+        $this->aliasCommandStrings[] = trim($command);
+      }
+    }
   }
 
 }
