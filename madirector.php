@@ -10,8 +10,8 @@ require_once 'SPTK/Autoload.php';
 \MADIR\Pty\CommanderHandler::init();
 
 new \SPTK\App(
-  'Layout/madirector.xml',
-  'Layout/style.xss',
+  __DIR__ . '/Layout/madirector.xml',
+  __DIR__ . '/Layout/style.xss',
   null,
   ['\MADIR\Pty\CommanderHandler', 'loop'],
   null,
