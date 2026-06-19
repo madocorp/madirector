@@ -94,12 +94,16 @@ class Picture {
       $image->setBase64($command['data'] ?? '');
     }
     [$row, $column] = $terminal->getCursorPosition();
-    $x = $column * $terminal->getLetterWidth() + (int)($command['cellXOffset'] ?? 0);
-    $y = $row * $terminal->getLetterHeight() + (int)($command['cellYOffset'] ?? 0);
+    [$documentRow, $documentColumn] = $terminal->getCursorDocumentPosition();
+    $cellXOffset = (int)($command['cellXOffset'] ?? 0);
+    $cellYOffset = (int)($command['cellYOffset'] ?? 0);
+    $x = $column * $terminal->getLetterWidth() + $cellXOffset;
+    $y = $row * $terminal->getLetterHeight() + $cellYOffset;
     $style = $image->getStyle();
     $style->set('position', 'absolute');
     $style->set('x', "{$x}px");
     $style->set('y', "{$y}px");
+    $terminal->registerInlineImage($image, $documentRow, $documentColumn, $cellXOffset, $cellYOffset);
     self::$pictures[$id]['images'][] = $image;
   }
 

@@ -593,6 +593,13 @@ class ScreenBuffer {
     return [$this->row, $this->col];
   }
 
+  public function getCursorDocumentPosition() {
+    if (!$this->altScreenActive) {
+      return [count($this->scrollBuffer) + $this->row, $this->col];
+    }
+    return [$this->row, $this->col];
+  }
+
   public function setSize($rows, $cols) {
     if ($cols !== $this->cols) {
       $this->contentCols = 0;
