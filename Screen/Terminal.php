@@ -44,6 +44,7 @@ class Terminal extends Element {
   protected $textureWidth;
   protected $textureHeight;
   protected $clearTexture = false;
+  protected $inlineImages = [];
   public $search;
 
   public function init(): void {
@@ -98,6 +99,7 @@ class Terminal extends Element {
 
   public function removeDescendant(Element $element): void {
     parent::removeDescendant($element);
+    unset($this->inlineImages[spl_object_id($element)]);
     $this->changed = true;
   }
 
@@ -137,10 +139,13 @@ class Terminal extends Element {
     if ($this->scrollMode) {
       return;
     }
+    $previousScrollOffset = $this->scrollOffset;
     $lines = $this->buffer->countLines();
     $rows = $this->buffer->getRowCount();
-    if ($lines > $rows) {
-      $this->scrollOffset = $lines - $rows;
+    $this->scrollOffset = max(0, $lines - $rows);
+    if ($this->scrollOffset !== $previousScrollOffset) {
+      $this->clearTexture = true;
+      $this->changed = true;
     }
     $this->cursor->setLines($this->buffer->getLines());
     $this->cursor->moveDocEnd();
@@ -234,19 +239,6 @@ class Terminal extends Element {
         $sdl->SDL_RenderFillRect($this->renderer, self::$sdlFRect2Addr);
       }
     }
-    if ($this->scrollMode) {
-      $selectionCursor = $this->cursor->get();
-      $cursorRow = $selectionCursor[0] - $this->scrollOffset;
-      $cursorCol = $selectionCursor[1];
-      if (isset($rows[$cursorRow]) && $cursorCol >= count($rows[$cursorRow])) {
-        self::$sdlFRect2->x = (float)($cursorCol * $cw + $this->geometry->paddingLeft + $this->geometry->borderLeft - $this->scrollX);
-        self::$sdlFRect2->y = (float)($cursorRow * $ch + $this->geometry->paddingTop + $this->geometry->borderTop);
-        self::$sdlFRect2->w = (float)$cw;
-        self::$sdlFRect2->h = (float)$ch;
-        $sdl->SDL_SetRenderDrawColor($this->renderer, 0xff, 0xff, 0x00, 0xff);
-        $sdl->SDL_RenderFillRect($this->renderer, self::$sdlFRect2Addr);
-      }
-    }
     if ($hasImages) {
       foreach ($this->stack as $image) {
         if ($image->display === false || $image->clipped) {
@@ -255,8 +247,29 @@ class Terminal extends Element {
         $image->redraw();
         $texture = $image->render();
         if ($texture !== false) {
-          $texture->copyTo($this->texture, $image->geometry->x - $this->scrollX, $image->geometry->y - $this->scrollY);
+          $placement = $this->inlineImages[spl_object_id($image)] ?? false;
+          if ($placement !== false) {
+            $x = $placement['column'] * $this->letterWidth + $placement['cellXOffset'] - $this->scrollX;
+            $y = ($placement['row'] - $this->scrollOffset) * $this->letterHeight + $placement['cellYOffset'] - $this->scrollY;
+          } else {
+            $x = $image->geometry->x - $this->scrollX;
+            $y = $image->geometry->y - $this->scrollY;
+          }
+          $texture->copyTo($this->texture, $x, $y);
         }
+      }
+    }
+    if ($this->scrollMode) {
+      $selectionCursor = $this->cursor->get();
+      $cursorRow = $selectionCursor[0] - $this->scrollOffset;
+      $cursorCol = $selectionCursor[1];
+      if (isset($rows[$cursorRow]) && $cursorCol >= 0 && $cursorCol <= $this->buffer->getColCount()) {
+        self::$sdlFRect2->x = (float)($cursorCol * $cw + $this->geometry->paddingLeft + $this->geometry->borderLeft - $this->scrollX);
+        self::$sdlFRect2->y = (float)($cursorRow * $ch + $this->geometry->paddingTop + $this->geometry->borderTop);
+        self::$sdlFRect2->w = (float)$cw;
+        self::$sdlFRect2->h = (float)$ch;
+        $sdl->SDL_SetRenderDrawColor($this->renderer, 0xff, 0xff, 0x00, 0xff);
+        $sdl->SDL_RenderFillRect($this->renderer, self::$sdlFRect2Addr);
       }
     }
     $previousColor = false;
@@ -506,6 +519,19 @@ class Terminal extends Element {
 
   public function getCursorPosition() {
     return $this->buffer->getCursorPosition();
+  }
+
+  public function getCursorDocumentPosition() {
+    return $this->buffer->getCursorDocumentPosition();
+  }
+
+  public function registerInlineImage(Element $image, $row, $column, $cellXOffset, $cellYOffset): void {
+    $this->inlineImages[spl_object_id($image)] = [
+      'row' => $row,
+      'column' => $column,
+      'cellXOffset' => $cellXOffset,
+      'cellYOffset' => $cellYOffset
+    ];
   }
 
 }
