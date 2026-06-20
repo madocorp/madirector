@@ -113,6 +113,25 @@ class Terminal extends Element {
     $this->inputCallback = $callback;
   }
 
+  public function respond($stream): void {
+    $this->traceTerminalResponse($stream);
+    if ($this->inputCallback !== null) {
+      call_user_func($this->inputCallback, $stream);
+    }
+  }
+
+  private function traceTerminalResponse($stream): void {
+    if (getenv('MADIR_TRACE_TERMINAL') === false) {
+      return;
+    }
+    $path = getenv('MADIR_TRACE_TERMINAL');
+    if ($path === '' || $path === '1') {
+      $path = '/tmp/madirector-terminal-trace.log';
+    }
+    $line = date('c') . " RESP " . bin2hex($stream) . " " . addcslashes($stream, "\0..\37\177..\377") . "\n";
+    @file_put_contents($path, $line, FILE_APPEND);
+  }
+
   public function grabInput() {
     $this->inputGrab = true;
   }
@@ -204,7 +223,8 @@ class Terminal extends Element {
     if ($this->scrollMode) {
       $this->cursor->toCoordinates($row1, $col1, $row2, $col2);
     }
-    $hasImages = !empty($this->stack);
+    $images = $this->getInlineImages();
+    $hasImages = !empty($images);
     foreach ($rows as $i => $row) {
       foreach ($row as $j => $cell) {
         if (!$hasImages && !$this->scrollMode && !$this->buffer->cellChanged($i, $j)) {
@@ -240,21 +260,16 @@ class Terminal extends Element {
       }
     }
     if ($hasImages) {
-      foreach ($this->stack as $image) {
+      foreach ($images as $placement) {
+        $image = $placement['image'];
         if ($image->display === false || $image->clipped) {
           continue;
         }
         $image->redraw();
         $texture = $image->render();
         if ($texture !== false) {
-          $placement = $this->inlineImages[spl_object_id($image)] ?? false;
-          if ($placement !== false) {
-            $x = $placement['column'] * $this->letterWidth + $placement['cellXOffset'] - $this->scrollX;
-            $y = ($placement['row'] - $this->scrollOffset) * $this->letterHeight + $placement['cellYOffset'] - $this->scrollY;
-          } else {
-            $x = $image->geometry->x - $this->scrollX;
-            $y = $image->geometry->y - $this->scrollY;
-          }
+          $x = $placement['column'] * $this->letterWidth + $placement['cellXOffset'] - $this->scrollX;
+          $y = ($placement['row'] - $this->scrollOffset) * $this->letterHeight + $placement['cellYOffset'] - $this->scrollY;
           $texture->copyTo($this->texture, $x, $y);
         }
       }
@@ -525,13 +540,37 @@ class Terminal extends Element {
     return $this->buffer->getCursorDocumentPosition();
   }
 
-  public function registerInlineImage(Element $image, $row, $column, $cellXOffset, $cellYOffset): void {
+  public function advanceCursor($rows, $cols): void {
+    $this->buffer->advanceCursor($rows, $cols);
+  }
+
+  public function registerInlineImage(Element $image, $row, $column, $cellXOffset, $cellYOffset, $zIndex = 0, $imageId = null, $placementId = null): void {
     $this->inlineImages[spl_object_id($image)] = [
+      'image' => $image,
       'row' => $row,
       'column' => $column,
       'cellXOffset' => $cellXOffset,
-      'cellYOffset' => $cellYOffset
+      'cellYOffset' => $cellYOffset,
+      'zIndex' => $zIndex,
+      'imageId' => $imageId,
+      'placementId' => $placementId
     ];
+    $this->clearTexture = true;
+    $this->changed = true;
+  }
+
+  public function unregisterInlineImage(Element $image): void {
+    unset($this->inlineImages[spl_object_id($image)]);
+    $this->clearTexture = true;
+    $this->changed = true;
+  }
+
+  private function getInlineImages(): array {
+    $images = array_values($this->inlineImages);
+    usort($images, function ($a, $b) {
+      return ($a['zIndex'] <=> $b['zIndex']);
+    });
+    return $images;
   }
 
 }
