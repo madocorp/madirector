@@ -137,10 +137,10 @@ class Command {
       $this->grab = $grab;
     }
     if ($this->grab) {
-      $this->box->addClass('grab', true);
+      $this->box->addVariant('grab');
       $this->terminal->grabInput();
     } else {
-      $this->box->removeClass('grab', true);
+      $this->box->removeVariant('grab');
       $this->terminal->releaseInput();
     }
   }
@@ -153,11 +153,11 @@ class Command {
     }
     if ($this->scroll) {
       $this->terminal->scrollOn();
-      $this->box->addClass('scroll', true);
+      $this->box->addVariant('scroll');
       $this->screenBuffer->invalidateScreen();
     } else {
       $this->terminal->scrollOff();
-      $this->box->removeClass('scroll', true);
+      $this->box->removeVariant('scroll');
       $this->screenBuffer->invalidateScreen();
     }
   }
@@ -216,7 +216,7 @@ class Command {
     $label = new \SPTK\Element($cmd, null, 'prompt', 'Label');
     $label->setText('>');
     $input = new \SPTK\Elements\Input($label, null, 'cmd');
-    $input->addClass('active', true);
+    $input->addVariant('active');
   }
 
   public function refreshCommandLine() {
@@ -283,7 +283,7 @@ class Command {
     $this->terminal->setInputCallback([$this, 'input']);
     if ($boxSize === 1) {
       $this->toggleGrab(true);
-      $this->box->addClass('grab', true);
+      $this->box->addVariant('grab');
     }
   }
 
@@ -303,12 +303,12 @@ class Command {
 
   public function activate() {
     if ($this->command === false || (!$this->grab && !$this->scroll)) {
-      $this->box->addClass('active', true);
+      $this->box->addVariant('active');
     }
   }
 
   public function inactivate() {
-    $this->box->removeClass('active', true);
+    $this->box->removeVariant('active');
   }
 
   public function getCid() {
@@ -331,10 +331,10 @@ class Command {
   public function toggleMultiplexGrab(bool $grab) {
     if ($grab) {
       if ($this->done === false) {
-        $this->box->addClass('grab', true);
+        $this->box->addVariant('grab');
       }
     } else {
-      $this->box->removeClass('grab', true);
+      $this->box->removeVariant('grab');
     }
   }
 
