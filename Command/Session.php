@@ -52,7 +52,6 @@ class Session {
     if (!is_array($alias)) {
       return;
     }
-    self::$alias = [];
     foreach ($alias as $name => $value) {
       if (is_string($name) && is_string($value)) {
         self::$alias[$name] = $value;

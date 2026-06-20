@@ -593,6 +593,17 @@ class ScreenBuffer {
     return [$this->row, $this->col];
   }
 
+  public function advanceCursor($rows, $cols): void {
+    $rows = max(0, $rows);
+    $cols = max(0, $cols);
+    if ($cols > 0) {
+      $this->cursorRight($cols);
+    }
+    for ($i = 0; $i < $rows; $i++) {
+      $this->lineFeed(false);
+    }
+  }
+
   public function getCursorDocumentPosition() {
     if (!$this->altScreenActive) {
       return [count($this->scrollBuffer) + $this->row, $this->col];

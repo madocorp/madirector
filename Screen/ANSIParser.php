@@ -10,6 +10,7 @@ class ANSIParser {
   const OSC = 3;
   const CHARSET = 4;
   const APC = 5;
+  const DCS = 6;
 
   const ASCII = 0;
   const DEC = 1;
@@ -45,7 +46,15 @@ class ANSIParser {
       // DEBUG:9 $c = false;
       switch ($this->state) {
         case self::GROUND:
-          if ($pu === "\e") { // ESC
+          if (ord($pu) === 0x90) { // DCS
+            $this->buffer = '';
+            $this->state = self::DCS;
+          } elseif (ord($pu) === 0x9f) { // APC
+            $this->buffer = '';
+            $this->state = self::APC;
+          } elseif (ord($pu) >= 0x80 && ord($pu) <= 0x9f) {
+            // Ignore unhandled C1 controls in ground state.
+          } elseif ($pu === "\e") { // ESC
             $this->state = self::ESCAPE;
             // DEBUG:9 echo "\nESC ";
           } elseif ($this->isPrintable($pu)) {
@@ -79,6 +88,8 @@ class ANSIParser {
             $this->state = self::CSI;
           } elseif ($pu === ']') {
             $this->state = self::OSC;
+          } elseif ($pu === 'P') {
+            $this->state = self::DCS;
           } elseif ($pu === '(') {
             $this->state = self::CHARSET;
           } elseif ($pu === '>') {
@@ -139,7 +150,7 @@ class ANSIParser {
             // DEBUG:9 echo "{$this->buffer} ", "0x", dechex(ord($pu)), " OSC";
             $this->state = self::GROUND;
             $this->buffer = '';
-          } else if (ord($pu) === 0x5c && ord(substr($this->buffer, -1)) === 0x1b) { // ST
+          } else if (ord($pu) === 0x5c && substr($this->buffer, -1) === "\e") { // ST
             // DEBUG:9 echo "{$this->buffer} ", "0x", dechex(ord($pu)), " OSC";
             $this->state = self::GROUND;
             $this->buffer = '';
@@ -148,7 +159,7 @@ class ANSIParser {
           }
           break;
         case self::APC:
-          if (ord($pu) === 0x5c && ord(substr($this->buffer, -1)) === 0x1b) { // ST
+          if (ord($pu) === 0x5c && substr($this->buffer, -1) === "\e") { // ST
             // DEBUG:9 echo "{$this->buffer} APC ";
             $this->executeAPC();
             $this->state = self::GROUND;
@@ -159,6 +170,19 @@ class ANSIParser {
             $this->state = self::GROUND;
             $this->buffer = '';
           } else{
+            $this->buffer .= $pu;
+          }
+          break;
+        case self::DCS:
+          if (ord($pu) === 0x5c && substr($this->buffer, -1) === "\e") { // ST
+            $this->executeDCS(substr($this->buffer, 0, -1));
+            $this->state = self::GROUND;
+            $this->buffer = '';
+          } else if (ord($pu) === 0x9c) { // ST
+            $this->executeDCS($this->buffer);
+            $this->state = self::GROUND;
+            $this->buffer = '';
+          } else {
             $this->buffer .= $pu;
           }
           break;
@@ -175,6 +199,11 @@ class ANSIParser {
     while ($i < $len) {
       $byte = ord($this->utf8Buffer[$i]);
       if ($byte <= 0x7F) {
+        $out[] = $this->utf8Buffer[$i];
+        $i++;
+        continue;
+      }
+      if ($byte >= 0x80 && $byte <= 0x9F) {
         $out[] = $this->utf8Buffer[$i];
         $i++;
         continue;
@@ -216,17 +245,24 @@ class ANSIParser {
   public function executeCSI() {
     $final = substr($this->buffer, -1);
     $params = explode(';', substr($this->buffer, 0, -1));
+    $private = false;
     foreach ($params as $i => $param) {
       if ($param === '') {
         $params[$i] = null;
       } else if (ctype_digit($param)) {
         $params[$i] = (int)$param;
+      } else if (preg_match('/^[?>][0-9]*$/', $param)) {
+        $private = true;
+        continue;
       } else {
         if ($final != 'h' && $final != 'l') {
           // DEBUG:9 echo "SKIP";
           return;
         }
       }
+    }
+    if ($private && !in_array($final, ['c', 'h', 'l', 'q'], true)) {
+      return;
     }
     switch ($final) {
       case 'm':
@@ -320,6 +356,49 @@ class ANSIParser {
       case 'b':
         $this->screen->repeatChar($params[0] ?? 1);
         break;
+      case 'n':
+        if (($params[0] ?? null) === 6) {
+          [$row, $col] = $this->screen->getCursorPosition();
+          $terminal = $this->screen->getTerminal();
+          if ($terminal !== null) {
+            $terminal->respond("\e[" . ($row + 1) . ";" . ($col + 1) . "R");
+          }
+        }
+        break;
+      case 'q':
+        if (substr($this->buffer, 0, 1) === '>') {
+          $terminal = $this->screen->getTerminal();
+          if ($terminal !== null) {
+            $terminal->respond("\eP>|madirector(1)\e\\");
+          }
+        }
+        break;
+      case 't':
+        $terminal = $this->screen->getTerminal();
+        if ($terminal !== null) {
+          $rows = $this->screen->getRowCount();
+          $cols = $this->screen->getColCount() + 1;
+          $cellHeight = $terminal->getLetterHeight();
+          $cellWidth = $terminal->getLetterWidth();
+          if (($params[0] ?? null) === 14) {
+            $terminal->respond("\e[4;" . ($rows * $cellHeight) . ";" . ($cols * $cellWidth) . "t");
+          } elseif (($params[0] ?? null) === 16) {
+            $terminal->respond("\e[6;{$cellHeight};{$cellWidth}t");
+          } elseif (($params[0] ?? null) === 18) {
+            $terminal->respond("\e[8;{$rows};{$cols}t");
+          }
+        }
+        break;
+      case 'c':
+        $terminal = $this->screen->getTerminal();
+        if ($terminal !== null) {
+          if (substr($this->buffer, 0, 1) === '>') {
+            $terminal->respond("\e[>99;1;0c");
+          } else {
+            $terminal->respond("\e[?62;1c");
+          }
+        }
+        break;
       case 'J':
         $this->screen->eraseDisplay($params[0] ?? 0);
         break;
@@ -390,6 +469,54 @@ class ANSIParser {
       }
       Picture::parseAnsii($sequence, $this->screen->getTerminal());
     }
+  }
+
+  public function executeDCS($sequence) {
+    if (substr($sequence, 0, 2) === '+q') {
+      $terminal = $this->screen->getTerminal();
+      if ($terminal === null) {
+        return;
+      }
+      $pairs = [];
+      foreach (explode(';', substr($sequence, 2)) as $nameHex) {
+        $name = $this->hexDecode($nameHex);
+        $value = $this->termcapValue($name);
+        if ($value === null) {
+          continue;
+        }
+        $pairs[] = $nameHex . '=' . $this->hexEncode($value);
+      }
+      if (!empty($pairs)) {
+        $terminal->respond("\eP1+r" . implode(';', $pairs) . "\e\\");
+      } else {
+        $terminal->respond("\eP0+r\e\\");
+      }
+    }
+  }
+
+  private function termcapValue($name) {
+    switch ($name) {
+      case 'TN':
+        return 'madirector';
+      case 'RGB':
+        return '1';
+      case 'hpa':
+        return "\e[%i%p1%dG";
+    }
+    return null;
+  }
+
+  private function hexDecode($hex) {
+    $out = '';
+    $len = strlen($hex);
+    for ($i = 0; $i + 1 < $len; $i += 2) {
+      $out .= chr(hexdec(substr($hex, $i, 2)));
+    }
+    return $out;
+  }
+
+  private function hexEncode($value) {
+    return bin2hex($value);
   }
 
   public function handleControl($pu) {
