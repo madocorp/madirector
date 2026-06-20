@@ -31,22 +31,22 @@ class PtyHandler {
 
   public function runCommand($command) {
     $this->cid = $command['cid'];
-    // DEBUG:8 echo "MSGSND: commander->pty [command]\n";
+    // DEBUG:msg echo "MSGSND: commander->pty [command]\n";
     Message::send($this->socket, $command);
   }
 
   public function sendInput($input) {
-    // DEBUG:8 echo "MSGSND: commander->pty [input]\n";
+    // DEBUG:msg echo "MSGSND: commander->pty [input]\n";
     Message::send($this->socket, ['cid' => $this->cid, 'input' => $input]);
   }
 
   public function sendSize($size) {
-    // DEBUG:8 echo "MSGSND: commander->pty [size]\n";
+    // DEBUG:msg echo "MSGSND: commander->pty [size]\n";
     Message::send($this->socket, ['cid' => $this->cid, 'size' => $size]);
   }
 
   public function sendSignal($signal) {
-    // DEBUG:8 echo "MSGSND: commander->pty [signal]\n";
+    // DEBUG:msg echo "MSGSND: commander->pty [signal]\n";
     Message::send($this->socket, ['cid' => $this->cid, 'signal' => $signal]);
   }
 

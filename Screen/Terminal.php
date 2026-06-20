@@ -397,7 +397,7 @@ class Terminal extends Element {
     $ttf->SDL_DestroySurface($surface);
     $sdl->SDL_DestroySurface($surface2);
     $sdl->SDL_DestroySurface($srcSurface);
-    // DEBUG:6 echo "New glyph on the atlas: {$glyph} [{$x}, {$y}]\n";
+    // DEBUG:glyph echo "New glyph on the atlas: {$glyph} [{$x}, {$y}]\n";
   }
 
   protected function render(): Texture|false {
@@ -446,12 +446,12 @@ class Terminal extends Element {
         $this->buffer->getApplicationKeypadState()
       );
       if ($stream !== null) {
-        // DEBUG:8 $a = str_split($stream);
-        // DEBUG:8 echo "INPUT: ";
-        // DEBUG:8 foreach ($a as $c) {
-        // DEBUG:8   echo '0x', dechex(ord($c)), ' ';
-        // DEBUG:8 }
-        // DEBUG:8 echo "\n";
+        // DEBUG:input $a = str_split($stream);
+        // DEBUG:input echo "INPUT: ";
+        // DEBUG:input foreach ($a as $c) {
+        // DEBUG:input   echo '0x', dechex(ord($c)), ' ';
+        // DEBUG:input }
+        // DEBUG:input echo "\n";
         call_user_func($this->inputCallback, $stream);
       }
       return true;
@@ -519,7 +519,7 @@ class Terminal extends Element {
     if (!$this->inputGrab) {
       return false;
     }
-    // DEBUG:8 echo "INPUT: {$event['text']}\n";
+    // DEBUG:input echo "INPUT: {$event['text']}\n";
     call_user_func($this->inputCallback, $event['text']);
     return true;
   }

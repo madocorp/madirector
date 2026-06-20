@@ -37,19 +37,19 @@ class Commander {
             exit(1);
           }
           if (isset($message['input'])) {
-            // DEBUG:8 echo "MSGRCV: commander [input]\n";
+            // DEBUG:msg echo "MSGRCV: commander [input]\n";
             $this->sendInput($message);
           }
           if (isset($message['size'])) {
-            // DEBUG:8 echo "MSGRCV: commander [size]\n";
+            // DEBUG:msg echo "MSGRCV: commander [size]\n";
             $this->sendSize($message);
           }
           if (isset($message['signal'])) {
-            // DEBUG:8 echo "MSGRCV: commander [signal]\n";
+            // DEBUG:msg echo "MSGRCV: commander [signal]\n";
             $this->sendSignal($message);
           }
           if (isset($message['command'])) {
-            // DEBUG:8 echo "MSGRCV: commander [command: {$message['command']}]\n";
+            // DEBUG:msg echo "MSGRCV: commander [command: {$message['command']}]\n";
             $this->delegateCommand($message);
           }
         } else {
@@ -112,7 +112,7 @@ class Commander {
   }
 
   private function forwardResponse($ptyResponse) {
-    // DEBUG:8 echo "MSGSND: commander->main [", (isset($ptyResponse['return']) ? 'return' : 'output'), "]\n";
+    // DEBUG:msg echo "MSGSND: commander->main [", (isset($ptyResponse['return']) ? 'return' : 'output'), "]\n";
     Message::send($this->commanderSocket, $ptyResponse);
     if (isset($ptyResponse['return'])) {
       $pid = $ptyResponse['pid'];

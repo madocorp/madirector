@@ -417,7 +417,7 @@ class Controller {
       if (self::$outputMode !== self::MODE_INTERACTIVE) {
         self::$outputMode = self::MODE_INTERACTIVE;
         \SPTK\SDLWrapper\SDL::$instance->setWaitTime(self::INTERACTIVE_TIMEOUT);
-        // DEBUG:6 echo "Mode: INTERACTIVE\n";
+        // DEBUG:throttling echo "Mode: INTERACTIVE\n";
       }
       self::$interactiveTill = $now + self::INTERACTIVE_PERIOD;
       self::$activeTill = $now + self::ACTIVE_PERIOD;
@@ -425,7 +425,7 @@ class Controller {
       if (self::$outputMode === self::MODE_IDLE) {
         \SPTK\SDLWrapper\SDL::$instance->setWaitTime(self::ACTIVE_TIMEOUT);
         self::$outputMode = self::MODE_ACTIVE;
-        // DEBUG:6 echo "Mode: ACTIVE\n";
+        // DEBUG:throttling echo "Mode: ACTIVE\n";
       }
       self::$activeTill = $now + self::ACTIVE_PERIOD;
     }
@@ -452,12 +452,12 @@ class Controller {
     if (self::$outputMode === self::MODE_INTERACTIVE && $now > self::$interactiveTill) {
       self::$outputMode = self::MODE_ACTIVE;
       \SPTK\SDLWrapper\SDL::$instance->setWaitTime(self::ACTIVE_TIMEOUT);
-      // DEBUG:6 echo "Mode: ACTIVE\n";
+      // DEBUG:throttling echo "Mode: ACTIVE\n";
     }
     if (self::$outputMode === self::MODE_ACTIVE && $now > self::$activeTill) {
       self::$outputMode = self::MODE_IDLE;
       \SPTK\SDLWrapper\SDL::$instance->setWaitTime(self::IDLE_TIMEOUT);
-      // DEBUG:6 echo "Mode: IDLE\n";
+      // DEBUG:throttling echo "Mode: IDLE\n";
     }
   }
 

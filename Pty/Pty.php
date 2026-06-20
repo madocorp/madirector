@@ -33,7 +33,7 @@ class Pty {
         $commandReceived = true;
       }
     }
-    // DEBUG:8 echo "MSGRCV: pty [command: {$message['command']}]\n";
+    // DEBUG:msg echo "MSGRCV: pty [command: {$message['command']}]\n";
     $this->cid = $message['cid'];
     $command = json_decode($message['command'], true);
     Libc::setSize($this->master, $command['rows'], $command['cols']);
@@ -72,7 +72,7 @@ class Pty {
         }
       }
     }
-    // DEBG:8 echo "MSGSND: pty->commander [return]\n";
+    // DEBUG:msg echo "MSGSND: pty->commander [return]\n";
     Message::send($this->socket, [
       'cid' => $this->cid,
       'pid' => $this->pid,
@@ -83,7 +83,7 @@ class Pty {
   }
 
   private function sendOutput($output) {
-    // DEBUG:8 echo "MSGSND: pty->commander [output]\n";
+    // DEBUG:msg echo "MSGSND: pty->commander [output]\n";
     Message::send($this->socket, [
       'cid' => $this->cid,
       'pid' => $this->pid,
