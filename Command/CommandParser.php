@@ -23,10 +23,10 @@ class CommandParser {
     $tokens = \MADIR\Command\CommandTokenizer::start([$commandString], "\MADIR\Command\CommandTokenizer");
     $this->tokens = $tokens[0]['tokens'];
     $this->aliasCommandStrings = [];
-    // DEBUG:4 echo "Command tokens: {$commandString}\n";
-    // DEBUG:4 foreach ($this->tokens as $token) {
-    // DEBUG:4  echo "  " . str_pad("[{$token['type']}]", 25) . "\"{$token['value']}\"\n";
-    // DEBUG:4 }
+    // DEBUG:parser echo "Command tokens: {$commandString}\n";
+    // DEBUG:parser foreach ($this->tokens as $token) {
+    // DEBUG:parser  echo "  " . str_pad("[{$token['type']}]", 25) . "\"{$token['value']}\"\n";
+    // DEBUG:parser }
     $this->len = count($this->tokens);
     return $this->parallel();
   }

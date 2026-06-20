@@ -36,7 +36,7 @@ class CommanderHandler {
     $commandId = self::$commandId;
     self::$commandId++;
     self::$commands[$commandId] = $command;
-    // DEBUG:8 echo "MSGSND: main->commander [command]\n";
+    // DEBUG:msg echo "MSGSND: main->commander [command]\n";
     Message::send(self::$commanderSocket, [
       'cid' => $commandId,
       'command' => $command->getCommandMessage()
@@ -51,7 +51,7 @@ class CommanderHandler {
   }
 
   public static function sendInput($cid, $input) {
-    // DEBUG:8 echo "MSGSND: main->commander [input]\n";
+    // DEBUG:msg echo "MSGSND: main->commander [input]\n";
     Message::send(self::$commanderSocket, [
       'cid' => $cid,
       'input' => $input
@@ -59,7 +59,7 @@ class CommanderHandler {
   }
 
   public static function sendSize($cid, $rows, $cols) {
-    // DEBUG:8 echo "MSGSND: main->commander [size]\n";
+    // DEBUG:msg echo "MSGSND: main->commander [size]\n";
     Message::send(self::$commanderSocket, [
       'cid' => $cid,
       'size' => "{$rows}x{$cols}"
@@ -67,7 +67,7 @@ class CommanderHandler {
   }
 
   public static function sendSignal($cid, $signal) {
-    // DEBUG:8 echo "MSGSND: main->commander [signal]\n";
+    // DEBUG:msg echo "MSGSND: main->commander [signal]\n";
     Message::send(self::$commanderSocket, [
       'cid' => $cid,
       'signal' => $signal
@@ -90,11 +90,11 @@ class CommanderHandler {
       if (isset(self::$commands[$commandId])) {
         $command = self::$commands[$commandId];
         if (isset($message['return'])) {
-          // DEBUG:8 echo "MSGRCV: main [return]\n";
+          // DEBUG:msg echo "MSGRCV: main [return]\n";
           $command->end($message['return']);
           unset(self::$commands[$commandId]);
         } else {
-          // DEBUG:8 echo "MSGRCV: main [output]\n";
+          // DEBUG:msg echo "MSGRCV: main [output]\n";
           $command->output($message['output']);
         }
       }

@@ -223,7 +223,7 @@ class ScreenBuffer {
   }
 
   public function cursorUp($n) {
-    // DEBUG:8 echo "cursorUp {$n}";
+    // DEBUG:screen echo "cursorUp {$n}";
     $this->pendingWrap = false;
     if ($this->row >= $n) {
       $this->setRow($this->row - $n);
@@ -233,7 +233,7 @@ class ScreenBuffer {
   }
 
   public function cursorDown($n) {
-    // DEBUG:8 echo "cursorDown {$n}";
+    // DEBUG:screen echo "cursorDown {$n}";
     $this->pendingWrap = false;
     if ($this->row < $this->rows - $n - 1) {
       $this->setRow($this->row + $n);
@@ -243,7 +243,7 @@ class ScreenBuffer {
   }
 
   public function cursorLeft($n) {
-    // DEBUG:8 echo "cursorLeft {$n}";
+    // DEBUG:screen echo "cursorLeft {$n}";
     $this->pendingWrap = false;
     if ($this->col >= $n) {
       $this->col -= $n;
@@ -253,7 +253,7 @@ class ScreenBuffer {
   }
 
   public function cursorRight($n) {
-    // DEBUG:8 echo "cursorRight {$n}";
+    // DEBUG:screen echo "cursorRight {$n}";
     $this->pendingWrap = false;
     if ($this->col < $this->cols - $n - 1) {
       $this->col += $n;
@@ -263,7 +263,7 @@ class ScreenBuffer {
   }
 
   public function cursorPos($n, $m) {
-    // DEBUG:8 echo "cursorPos {$n} {$m}";
+    // DEBUG:screen echo "cursorPos {$n} {$m}";
     $this->pendingWrap = false;
     if ($n !== false) {
       $this->setRow($n - 1);
@@ -328,7 +328,7 @@ class ScreenBuffer {
   }
 
   public function eraseLine($n) {
-    // DEBUG:8 echo "eraseLine {$n}";
+    // DEBUG:screen echo "eraseLine {$n}";
     $this->pendingWrap = false;
     switch ($n) {
       case 1: // erase start of line to the cursor
@@ -415,7 +415,7 @@ class ScreenBuffer {
   }
 
   public function scrollUp($n) {
-    // DEBUG:8 echo "scrollUp {$n}";
+    // DEBUG:screen echo "scrollUp {$n}";
     $this->pendingWrap = false;
     for ($i = $this->scrollRegionStart; $i <= $this->scrollRegionEnd; $i++) {
       if ($i + $n <= $this->scrollRegionEnd) {
@@ -427,7 +427,7 @@ class ScreenBuffer {
   }
 
   public function scrollDown($n) {
-    // DEBUG:8 echo "scrollDown {$n}";
+    // DEBUG:screen echo "scrollDown {$n}";
     $this->pendingWrap = false;
     for ($i = $this->scrollRegionEnd; $i >= $this->scrollRegionStart; $i--) {
       if ($i < $this->scrollRegionStart + $n) {
@@ -544,7 +544,7 @@ class ScreenBuffer {
   }
 
   public function saveCursor($saveState = false) {
-    // DEBUG:8 echo "saveCursor: {$this->row}, {$this->col}";
+    // DEBUG:screen echo "saveCursor: {$this->row}, {$this->col}";
     $this->savedCursor[0] = $this->row;
     $this->savedCursor[1] = $this->col;
     if ($saveState) {
@@ -559,7 +559,7 @@ class ScreenBuffer {
     if (empty($this->savedCursor)) {
       return;
     }
-    // DEBUG:8 echo "restoreCursor: {$this->row}, {$this->col}";
+    // DEBUG:screen echo "restoreCursor: {$this->row}, {$this->col}";
     $this->setRow($this->savedCursor[0]);
     $this->col = $this->savedCursor[1];
     if ($restoreState && count($this->savedCursor) > 2) {
