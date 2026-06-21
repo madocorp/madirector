@@ -279,6 +279,21 @@ class Session {
     return $command->getCid();
   }
 
+  private function runCommandStrings(array $commandStrings): void {
+    $parsedCommands = [];
+    foreach ($commandStrings as $commandString) {
+      $parser = new CommandParser($this);
+      foreach ($parser->parse($commandString) as $parsedCommand) {
+        $parsedCommands[] = $parsedCommand;
+      }
+    }
+    $group = count($parsedCommands);
+    $boxSize = \MADIR\Screen\Controller::getBoxSize($group);
+    foreach ($parsedCommands as $parsedCommand) {
+      $this->runCommand($parsedCommand, $group, $boxSize);
+    }
+  }
+
   public function getVisibleCommands() {
     $toSelected = array_slice($this->commands, 0, $this->selected + 1);
     return array_reverse($toSelected);
@@ -467,6 +482,10 @@ class Session {
     }
     if (preg_match('/^alias( |$)/', $commandString)) {
       $output = $this->alias($commandString);
+      return true;
+    }
+    if (preg_match('/^open( |$)/', $commandString)) {
+      $output = $this->openCommand($command);
       return true;
     }
     if (preg_match('/^s( |$)/', $commandString)) { // short verions of session

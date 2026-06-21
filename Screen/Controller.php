@@ -313,7 +313,7 @@ class Controller {
     \SPTK\Element::refresh();
   }
 
-  private static function getBoxSize($n) {
+  public static function getBoxSize($n) {
     if ($n > 4) {
       return 3;
     }

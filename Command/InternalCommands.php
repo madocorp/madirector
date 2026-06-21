@@ -4,6 +4,9 @@ namespace MADIR\Command;
 
 trait InternalCommands {
 
+  private static $openLoaded = false;
+  private static $openRelations = [];
+
   private function help($command) {
     $argument = trim(substr($command, 4));
     $appDir = dirname(APP_PATH);
@@ -55,6 +58,7 @@ trait InternalCommands {
           . "set      Manage environment variables.\n"
           . "alias    Manage command aliases.\n"
           . "session  Manage sessions. Alias: s.\n"
+          . "open     Open files with configured applications.\n"
           . "help     Show MaDirector help.\n"
           . "exit     Close sessions or quit MaDirector.\n"
           . "\$name=x  Set or unset a shell variable.\n"
@@ -285,6 +289,293 @@ trait InternalCommands {
     } else {
       $this->vars[$name] = $value;
       return "\e[1;37m\${$name}\e[0m = \"{$value}\"\n";
+    }
+  }
+
+  private static function getOpenFilePath(): string {
+    return \SPTK\Config::getFilePath('open.json');
+  }
+
+  private static function loadOpenRelations(): void {
+    if (self::$openLoaded) {
+      return;
+    }
+    self::$openLoaded = true;
+    $relations = \SPTK\Config::load(self::getOpenFilePath());
+    foreach ($relations as $name => $relation) {
+      if (!is_array($relation)) {
+        continue;
+      }
+      if (!is_string($name) || !is_string($relation['regexp'] ?? null) || !is_string($relation['app'] ?? null)) {
+        continue;
+      }
+      self::$openRelations[$name] = [
+        'regexp' => $relation['regexp'],
+        'app' => $relation['app'],
+        'terminal' => !empty($relation['terminal'])
+      ];
+    }
+  }
+
+  private static function saveOpenRelations(): bool {
+    self::loadOpenRelations();
+    return \SPTK\Config::save(self::getOpenFilePath(), self::$openRelations);
+  }
+
+  private function openCommand(array $command) {
+    $argv = $command['sequence'][0]['pipeline'][0]['argv'] ?? ['open'];
+    if (($argv[0] ?? null) !== 'open') {
+      return "Syntax error!\n";
+    }
+    if (count($argv) === 1) {
+      return $this->openHelp();
+    }
+    if (count($argv) === 2 && $argv[1] === '-l') {
+      return $this->openList();
+    }
+    if (($argv[1] ?? null) === '-d') {
+      return $this->openDelete($argv);
+    }
+    if (in_array('-c', $argv, true) || in_array('-a', $argv, true) || in_array('-n', $argv, true)) {
+      return $this->openSaveRelation($argv);
+    }
+    return $this->openFiles(array_slice($argv, 1));
+  }
+
+  private function openHelp(): string {
+    $help = "";
+    $help .= "\e[1;37m\"open\" opens files with configured applications.\e[0m\n";
+    $help .= "Relations are checked in order; the first matching relation is used.\n";
+    $help .= "  \e[1;37mopen                 \e[0mShow this help message.\n";
+    $help .= "  \e[1;37mopen -l              \e[0mList relations.\n";
+    $help .= "  \e[1;37mopen FILE...         \e[0mOpen files. Shell-style globs such as *.txt are expanded.\n";
+    $help .= "  \e[1;37mopen -n N -c R -a A  \e[0mCreate or replace a relation.\n";
+    $help .= "  \e[1;37mopen -t -n N -c R -a A\e[0mMark the application as a terminal command.\n";
+    $help .= "  \e[1;37mopen -d N            \e[0mDelete a relation.\n";
+    $help .= "Placeholders: \e[1;37m%f\e[0m expands to all files; \e[1;37m%F\e[0m repeats the containing argument per file.\n";
+    return $help;
+  }
+
+  private function openList(): string {
+    self::loadOpenRelations();
+    if (empty(self::$openRelations)) {
+      return "No open relations defined.\n";
+    }
+    $list = '';
+    foreach (self::$openRelations as $name => $relation) {
+      $type = $relation['terminal'] ? 'terminal' : 'window';
+      $list .= "\e[1;37m{$name}\e[0m [{$type}] {$relation['regexp']} -> {$relation['app']}\n";
+    }
+    return $list;
+  }
+
+  private function openDelete(array $argv): string {
+    self::loadOpenRelations();
+    $name = $argv[2] ?? '';
+    if ($name === '') {
+      return "Specify a relation name.\n";
+    }
+    if (!isset(self::$openRelations[$name])) {
+      return "Relation \"{$name}\" not found.\n";
+    }
+    unset(self::$openRelations[$name]);
+    if (!self::saveOpenRelations()) {
+      return "Could not save open relations.\n";
+    }
+    return "Deleted open relation \"\e[1;37m{$name}\e[0m\".\n";
+  }
+
+  private function openSaveRelation(array $argv): string {
+    self::loadOpenRelations();
+    $relation = [
+      'name' => null,
+      'regexp' => null,
+      'app' => null,
+      'terminal' => false
+    ];
+    for ($i = 1; $i < count($argv); $i++) {
+      switch ($argv[$i]) {
+        case '-t':
+          $relation['terminal'] = true;
+          break;
+        case '-n':
+        case '-c':
+        case '-a':
+          $option = $argv[$i];
+          $i++;
+          if (!isset($argv[$i])) {
+            return "Missing value for {$option}.\n";
+          }
+          if ($option === '-n') {
+            $relation['name'] = $argv[$i];
+          } else if ($option === '-c') {
+            $relation['regexp'] = $argv[$i];
+          } else {
+            $relation['app'] = $argv[$i];
+          }
+          break;
+        default:
+          return "Unknown option \"{$argv[$i]}\".\n";
+      }
+    }
+    if (!is_string($relation['name']) || !preg_match('/^[A-Za-z][A-Za-z0-9_-]*$/', $relation['name'])) {
+      return "Invalid relation name.\n";
+    }
+    if (!is_string($relation['regexp']) || $this->openRegexpIsValid($relation['regexp']) === false) {
+      return "Invalid regexp.\n";
+    }
+    if (!is_string($relation['app']) || trim($relation['app']) === '') {
+      return "Specify an application.\n";
+    }
+    $name = $relation['name'];
+    self::$openRelations[$name] = [
+      'regexp' => $relation['regexp'],
+      'app' => $relation['app'],
+      'terminal' => $relation['terminal']
+    ];
+    if (!self::saveOpenRelations()) {
+      return "Could not save open relations.\n";
+    }
+    $type = $relation['terminal'] ? 'terminal' : 'window';
+    return "Open relation defined.\n\e[1;37m{$name}\e[0m [{$type}] {$relation['regexp']} -> {$relation['app']}\n";
+  }
+
+  private function openRegexpIsValid(string $regexp): bool {
+    set_error_handler(function() {});
+    $result = preg_match($regexp, '');
+    restore_error_handler();
+    return $result !== false;
+  }
+
+  private function openFiles(array $patterns) {
+    self::loadOpenRelations();
+    if (empty(self::$openRelations)) {
+      return "No open relations defined.\n";
+    }
+    $paths = [];
+    $errors = [];
+    foreach ($patterns as $pattern) {
+      $matches = $this->openResolvePattern($pattern);
+      if (empty($matches)) {
+        $errors[] = "No matches for {$pattern}.";
+        continue;
+      }
+      foreach ($matches as $path) {
+        if (is_file($path)) {
+          $paths[$path] = $path;
+        } else {
+          $errors[] = "{$path}: not a file.";
+        }
+      }
+    }
+    $groups = [];
+    foreach ($paths as $path) {
+      $matched = false;
+      foreach (self::$openRelations as $name => $relation) {
+        if (preg_match($relation['regexp'], $path)) {
+          $groups[$name]['relation'] = $relation;
+          $groups[$name]['files'][] = $path;
+          $matched = true;
+          break;
+        }
+      }
+      if (!$matched) {
+        $errors[] = "{$path}: no matching open relation.";
+      }
+    }
+    $terminalCommands = [];
+    foreach ($groups as $group) {
+      $relation = $group['relation'];
+      if ($relation['terminal']) {
+        $terminalCommands[] = $this->openExpandTemplate($relation['app'], $group['files'], [$this, 'openQuoteCommandArg']);
+      } else {
+        $cmd = $this->openExpandTemplate($relation['app'], $group['files'], 'escapeshellarg');
+        $this->openDetached($cmd, $errors);
+      }
+    }
+    if (!empty($terminalCommands)) {
+      $this->runCommandStrings($terminalCommands);
+    }
+    if (!empty($errors)) {
+      return implode("\n", $errors) . "\n";
+    }
+    return true;
+  }
+
+  private function openResolvePattern(string $pattern): array {
+    $path = $this->openExpandPath($pattern);
+    if ($this->openHasGlob($path)) {
+      $matches = glob($path, GLOB_MARK) ?: [];
+      $files = [];
+      foreach ($matches as $match) {
+        $real = realpath($match);
+        if ($real !== false) {
+          $files[] = $real;
+        }
+      }
+      sort($files);
+      return $files;
+    }
+    $real = realpath($path);
+    return $real === false ? [] : [$real];
+  }
+
+  private function openExpandPath(string $path): string {
+    if (substr($path, 0, 2) === '~/') {
+      return \SPTK\Config::getHome() . substr($path, 1);
+    }
+    if (substr($path, 0, 1) !== '/') {
+      return rtrim($this->cwd, '/') . '/' . $path;
+    }
+    return $path;
+  }
+
+  private function openHasGlob(string $path): bool {
+    return strpbrk($path, '*?[') !== false;
+  }
+
+  private function openExpandTemplate(string $template, array $files, callable $quote): string {
+    $quoted = array_map($quote, $files);
+    $args = preg_split('/\s+/', trim($template));
+    $expanded = [];
+    $hasPlaceholder = strpos($template, '%f') !== false || strpos($template, '%F') !== false;
+    foreach ($args as $arg) {
+      if ($arg === '') {
+        continue;
+      }
+      if (strpos($arg, '%F') !== false) {
+        foreach ($quoted as $file) {
+          $expanded[] = str_replace('%F', $file, $arg);
+        }
+      } else if (strpos($arg, '%f') !== false) {
+        if ($arg === '%f') {
+          foreach ($quoted as $file) {
+            $expanded[] = $file;
+          }
+        } else {
+          $expanded[] = str_replace('%f', implode(' ', $quoted), $arg);
+        }
+      } else {
+        $expanded[] = $arg;
+      }
+    }
+    if (!$hasPlaceholder) {
+      foreach ($quoted as $file) {
+        $expanded[] = $file;
+      }
+    }
+    return implode(' ', $expanded);
+  }
+
+  private function openQuoteCommandArg(string $arg): string {
+    return '"' . str_replace(["\\", "\""], ["\\\\", "\\\""], $arg) . '"';
+  }
+
+  private function openDetached(string $command, array &$errors): void {
+    $shellCommand = 'cd ' . escapeshellarg($this->cwd) . ' && ' . $command . ' >/dev/null 2>&1 &';
+    exec('sh -c ' . escapeshellarg($shellCommand), $output, $result);
+    if ($result !== 0) {
+      $errors[] = "Failed to open with command: {$command}";
     }
   }
 

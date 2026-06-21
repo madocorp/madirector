@@ -201,6 +201,11 @@ class Engine {
       $providers[] = 'Directory';
       return $providers;
     }
+    if ($argv[0] === 'open') {
+      $providers[] = 'File';
+      $providers[] = 'Directory';
+      return $providers;
+    }
     if (count($argv) > 1) {
       $providers[] = 'File';
       $providers[] = 'Directory';

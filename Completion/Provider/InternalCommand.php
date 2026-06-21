@@ -5,7 +5,7 @@ namespace MADIR\Completion\Provider;
 class InternalCommand implements \MADIR\Completion\Provider {
 
   protected $commands = [
-    'cd', 'set', 'alias', 'session', 'help', 'exit'
+    'cd', 'set', 'alias', 'session', 'open', 'help', 'exit'
   ];
 
   public function getCandidates(array $argv, \MADIR\Command\Session $session): array {
