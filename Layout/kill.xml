@@ -1,6 +1,6 @@
 <Root>
 
-  <Panel name="kill">
+  <Panel name="kill" arrowTabs="true">
     <PanelTitle>Send signal</PanelTitle>
     <PanelContent>
       <Tabs>
@@ -8,20 +8,28 @@
         <Tab contentName="execution-state">Execution state</Tab>
         <Tab contentName="application-control">Appication control</Tab>
         <Tab contentName="all">All</Tab>
+      </Tabs>
+      <TabBox name="process-control">
         <ListBox class="kill-list" name="process-control">
           <ListItem value="15"><KillTitle>Terminate</KillTitle><KillName>SIGTERM</KillName><KillDesc>Graceful shutdown</KillDesc></ListItem>
           <ListItem value="2"><KillTitle>Interrupt</KillTitle><KillName>SIGINT</KillName><KillDesc>Ask the process to stop what it’s currently doing (Ctrl+C)</KillDesc></ListItem>
           <ListItem value="9"><KillTitle>Force kill</KillTitle><KillName>SIGKILL</KillName><KillDesc>Immediate termination when the process does not respond</KillDesc></ListItem>
         </ListBox>
+      </TabBox>
+      <TabBox name="execution-state">
         <ListBox class="kill-list" name="execution-state">
           <ListItem value="19"><KillTitle>Pause</KillTitle><KillName>SIGSTOP</KillName><KillDesc>Freeze the process immediately</KillDesc></ListItem>
           <ListItem value="18"><KillTitle>Resume</KillTitle><KillName>SIGCONT</KillName><KillDesc>Continue a paused process</KillDesc></ListItem>
         </ListBox>
+      </TabBox>
+      <TabBox name="application-control">
         <ListBox class="kill-list" name="application-control">
           <ListItem value="1"><KillTitle>Reload</KillTitle><KillName>SIGHUP</KillName><KillDesc>Reload config / reopen files (if supported)</KillDesc></ListItem>
           <ListItem value="10"><KillTitle>User signal 1</KillTitle><KillName>SIGUSR1</KillName><KillDesc>Application-defined</KillDesc></ListItem>
           <ListItem value="12"><KillTitle>User signal 2</KillTitle><KillName>SIGUSR2</KillName><KillDesc>Application-defined</KillDesc></ListItem>
         </ListBox>
+      </TabBox>
+      <TabBox name="all">
         <ListBox class="kill-list" name="all">
           <ListItem value="1"><KillTitle>[1]</KillTitle><KillName>SIGHUP</KillName></ListItem>
           <ListItem value="2"><KillTitle>[2]</KillTitle><KillName>SIGINT</KillName></ListItem>
@@ -88,7 +96,7 @@
           <ListItem value="63"><KillTitle>[63]</KillTitle><KillName>SIGRTMIN+29</KillName></ListItem>
           <ListItem value="64"><KillTitle>[64]</KillTitle><KillName>SIGRTMAX</KillName></ListItem>
         </ListBox>
-      </Tabs>
+      </TabBox>
       <ButtonBox>
         <Button hotKey="ESCAPE" onPress="MADIR\Screen\Controller::closeSignalPanel">Cancel</Button><Space />
         <Button hotKey="RETURN" onPress="MADIR\Screen\Controller::sendSignal">Save</Button>

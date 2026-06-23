@@ -149,6 +149,7 @@ class Controller {
           $window = \SPTK\Element::firstByType('Window');
           $window->addDescendant(self::$killPanel);
           self::$killPanel->show();
+          self::activateSignalList();
           \SPTK\Element::refresh();
         } else {
           if (!$command->isZoomed() && !$command->isScrolled()) {
@@ -467,9 +468,31 @@ class Controller {
     self::$lockOutput = false;
   }
 
-  public static function sendSignal() {
+  private static function activeSignalList() {
     $tabs = \SPTK\Element::firstByType('Tabs', self::$killPanel);
-    $list = $tabs->getTabContent();
+    if ($tabs === false) {
+      return false;
+    }
+    $content = $tabs->getTabContent();
+    if ($content === false) {
+      return false;
+    }
+    return \SPTK\Element::firstByType('ListBox', $content);
+  }
+
+  private static function activateSignalList() {
+    $list = self::activeSignalList();
+    if ($list === false) {
+      return;
+    }
+    self::$killPanel->activateInput($list->getName());
+  }
+
+  public static function sendSignal() {
+    $list = self::activeSignalList();
+    if ($list === false) {
+      return;
+    }
     $signal = $list->getValue();
     $session = \MADIR\Command\Session::getCurrent();
     $command = $session->currentCommand();
