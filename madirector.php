@@ -7,13 +7,22 @@ define('APP_NAMESPACE', 'MADIR');
 
 require_once 'SPTK/Autoload.php';
 
-\MADIR\Pty\CommanderHandler::init();
+use MADIR\App\Shell;
+use MADIR\Pty\CommanderHandler;
+use SPTK\Runtime\SdlApp;
+use SPTK\Runtime\SdlWindowOptions;
 
-new \SPTK\App(
-  __DIR__ . '/Layout/madirector.xml',
-  __DIR__ . '/Layout/style.xss',
-  null,
-  ['\MADIR\Pty\CommanderHandler', 'loop'],
-  null,
-  null
-);
+CommanderHandler::init();
+
+$app = new SdlApp('MADIR');
+$fontSize = 16;
+$shell = new Shell($fontSize);
+CommanderHandler::setPeriodicRefreshCallback(fn() => $shell->poll());
+$app->addTimer(20, fn() => CommanderHandler::loop());
+$app->addWindow($shell->build(), new SdlWindowOptions(
+  title: 'MaDirector',
+  columns: 128,
+  rows: 40,
+  fontSize: $fontSize
+));
+$app->run();
