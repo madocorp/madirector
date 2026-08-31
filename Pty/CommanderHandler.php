@@ -9,6 +9,7 @@ class CommanderHandler {
   private static $commandId = 0;
   private static $pid;
   private static $lastRefresh = false;
+  private static $periodicRefreshCallback = null;
 
   public static function init() {
     new Libc;
@@ -78,6 +79,10 @@ class CommanderHandler {
     unset(self::$commands[$cid]);
   }
 
+  public static function setPeriodicRefreshCallback(?callable $callback): void {
+    self::$periodicRefreshCallback = $callback;
+  }
+
   public static function loop() {
     $events = IO::pollAndReceive(0, [self::$commanderSocket]);
     foreach ($events as $item) {
@@ -101,7 +106,11 @@ class CommanderHandler {
     }
     $now = microtime(true) * 1000000;
     if ($now - self::$lastRefresh > 40000) {
-      \MADIR\Screen\Controller::periodicRefresh();
+      if (self::$periodicRefreshCallback !== null) {
+        call_user_func(self::$periodicRefreshCallback);
+      } else {
+        \MADIR\Screen\Controller::periodicRefresh();
+      }
       self::$lastRefresh = $now;
     }
   }
