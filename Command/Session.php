@@ -397,6 +397,10 @@ class Session {
     return $this->cwd;
   }
 
+  protected function home(): string {
+    return getenv('HOME') ?: getcwd();
+  }
+
   public function git() {
     return $this->git;
   }
