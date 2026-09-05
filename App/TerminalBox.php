@@ -48,7 +48,7 @@ class TerminalBox extends Dock {
 
   public function preferredRowsForColumns(int $columns): int {
     $maxRows = $this->maxStackRows();
-    if ($this->command->isRunning()) {
+    if ($this->command->isAltScreenActive()) {
       return $maxRows;
     }
     return min($maxRows, 2 + $this->terminalRowsAsWidgetRows($this->command->outputRows()));

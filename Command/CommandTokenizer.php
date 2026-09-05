@@ -2,9 +2,11 @@
 
 namespace MADIR\Command;
 
-class CommandTokenizer extends \SPTK\Tokenizer {
+use SPTK\Core\Tokenizer;
 
-  protected $contextSwitchers = [
+class CommandTokenizer extends Tokenizer {
+
+  protected array $contextSwitchers = [
     [
       'start' => '"',
       'end' => '"',
@@ -14,7 +16,7 @@ class CommandTokenizer extends \SPTK\Tokenizer {
       'type' => 'QUOTED_ARGV'
     ]
   ];
-  protected $regexpRules = [
+  protected array $regexpRules = [
     ['type' => 'AND', 'regexp' => '/^&&/'],
     ['type' => 'OR', 'regexp' => '/^\|\|/'],
     ['type' => 'COMMAND_SEPARATOR', 'regexp' => '/^;/'],

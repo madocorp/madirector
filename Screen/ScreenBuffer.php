@@ -19,7 +19,7 @@ class ScreenBuffer {
   protected $previousScreen = false;
   protected $previousCursor = false;
   protected $currentScreen;
-  protected $altScreenActive;
+  protected $altScreenActive = false;
   protected $scrollBuffer = [];
   protected $scrollRuns = [];
   protected $scrollWrap = [];
@@ -478,6 +478,10 @@ class ScreenBuffer {
 
   public function getApplicationKeypadState() {
     return $this->applicationKeypad;
+  }
+
+  public function isAltScreenActive(): bool {
+    return $this->altScreenActive === true;
   }
 
   public function getRows($offset = false) {

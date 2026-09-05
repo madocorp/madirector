@@ -19,12 +19,21 @@ class RunningCommand {
   private int $cols = 80;
 
   public function __construct(
-    private string $command,
+    private array $command,
     private string $workingDirectory,
     private array $environment
   ) {
     $this->buffer = new ScreenBuffer($this->rows, $this->cols);
     $this->started = microtime(true);
+  }
+
+  public static function completed(array $command, string $workingDirectory, array $environment, string $output, int $returnValue = 0): self {
+    $runningCommand = new self($command, $workingDirectory, $environment);
+    if ($output !== '') {
+      $runningCommand->output($output);
+    }
+    $runningCommand->end($returnValue);
+    return $runningCommand;
   }
 
   public function attachBox(TerminalBox $box): void {
@@ -43,14 +52,8 @@ class RunningCommand {
       'cols' => $this->cols,
       'wd' => $this->workingDirectory,
       'env' => $this->environment,
-      'sequence' => [[
-        'pipeline' => [[
-          'argv' => ['/bin/bash', '-lc', $this->command],
-          'redirects' => [],
-        ]],
-        'op' => false,
-      ]],
-      'commandString' => $this->command,
+      'sequence' => $this->command['sequence'],
+      'commandString' => $this->command['commandString'],
     ]);
   }
 
@@ -94,6 +97,13 @@ class RunningCommand {
     CommanderHandler::sendInput($this->cid, $stream);
   }
 
+  public function terminate(int $signal = SIGKILL): void {
+    if ($this->cid === null || !$this->isRunning()) {
+      return;
+    }
+    CommanderHandler::sendSignal($this->cid, $signal);
+  }
+
   public function buffer(): ScreenBuffer {
     return $this->buffer;
   }
@@ -106,8 +116,12 @@ class RunningCommand {
     return max(1, min($this->rows, count($lines)));
   }
 
+  public function isAltScreenActive(): bool {
+    return $this->buffer->isAltScreenActive();
+  }
+
   public function title(): string {
-    return $this->command;
+    return $this->command['commandString'];
   }
 
   public function status(): string {

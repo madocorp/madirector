@@ -3,9 +3,11 @@
 
 namespace MADIR\Command;
 
-class QuotedArgvTokenizer extends \SPTK\Tokenizer {
+use SPTK\Core\Tokenizer;
 
-  protected $regexpRules = [
+class QuotedArgvTokenizer extends Tokenizer {
+
+  protected array $regexpRules = [
     ['type' => 'QARGV',  'regexp' => '/^[^\\\\"]+/'],
     ['type' => 'QARGV',  'regexp' => '/^\\\\./']
   ];

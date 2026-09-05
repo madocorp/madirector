@@ -138,6 +138,9 @@ class Picture {
   }
 
   private static function place($command, $terminal) {
+    if ($terminal === null || !class_exists('\SPTK\Elements\Image')) {
+      return;
+    }
     $id = self::getId($command);
     if ($id === null || empty(self::$pictures[$id]['complete'])) {
       return;

@@ -2,6 +2,8 @@
 
 namespace MADIR\Command;
 
+use SPTK\Core\AppData;
+
 trait InternalCommands {
 
   private static $openLoaded = false;
@@ -12,9 +14,11 @@ trait InternalCommands {
     $appDir = dirname(APP_PATH);
     switch ($argument) {
       case "":
-        return "\e[1;37mhelp about\e[0m    Short description and Unlicense.\n"
-          . "\e[1;37mhelp key\e[0m      Keyboard shortcuts.\n"
-          . "\e[1;37mhelp command\e[0m  Shell syntax and internal commands.\n";
+        return HelpFormatter::rows([
+          ['help about', 'Short description and Unlicense.'],
+          ['help key', 'Keyboard shortcuts.'],
+          ['help command', 'Shell syntax and internal commands.'],
+        ], 14);
       case "about":
         $license = file_get_contents("{$appDir}/UNLICENSE");
         if ($license === false) {
@@ -27,42 +31,49 @@ trait InternalCommands {
           . "tasks together and easily sitch between them.\e[0m\n\n" . rtrim($license) . "\n";
       case "key":
         return "\e[1;37mKeyboard shortcuts\e[0m\n"
-          . "Enter                   Run a command or enter input mode.\n"
-          . "Escape                  Leave scroll mode.\n"
-          . "Up/Down                 Browse history or commands.\n"
-          . "Left/Right              Move within a command group.\n"
-          . "Home/End                Select the first or last command.\n"
-          . "Page Up/Page Down       Select the previous or next command.\n"
-          . "Ctrl+Left/Ctrl+Right    Switch sessions.\n"
-          . "Tab                     Complete a command or argument.\n"
-          . "Delete                  Stop or remove a command.\n"
-          . "Ctrl+C/Ctrl+V/Ctrl+A    Copy, paste, or copy command and output.\n"
-          . "I                       Enter input mode.\n"
-          . "S or Backspace          Enter or leave scroll mode.\n"
-          . "Z                       Toggle zoom.\n"
-          . "M                       Send input to all commands in the group.\n"
-          . "Double Shift            Toggle input and normal mode.\n"
-          . "F/B/N                   Search/previous/next in scroll mode.\n";
+          . HelpFormatter::rows([
+            ['Enter', 'Run a command or enter input mode.'],
+            ['Escape', 'Leave scroll mode.'],
+            ['Up/Down', 'Browse history or commands.'],
+            ['Left/Right', 'Move within a command group.'],
+            ['Home/End', 'Select the first or last command.'],
+            ['Page Up/Page Down', 'Select the previous or next command.'],
+            ['Ctrl+Left/Ctrl+Right', 'Switch sessions.'],
+            ['Tab', 'Complete a command or argument.'],
+            ['Delete', 'Stop or remove a command.'],
+            ['Ctrl+C/Ctrl+V/Ctrl+A', 'Copy, paste, or copy command and output.'],
+            ['I', 'Enter input mode.'],
+            ['S or Backspace', 'Enter or leave scroll mode.'],
+            ['Z', 'Toggle zoom.'],
+            ['M', 'Send input to all commands in the group.'],
+            ['Double Shift', 'Toggle input and normal mode.'],
+            ['F/B/N', 'Search/previous/next in scroll mode.'],
+          ], 24);
       case "command":
         return "\e[1;37mShell syntax\e[0m\n"
-          . "cmd1 | cmd2             Pipe commands.\n"
-          . "cmd1 && cmd2            Continue after success.\n"
-          . "cmd1 || cmd2            Continue after failure.\n"
-          . "cmd1 ; cmd2             Run in sequence.\n"
-          . "cmd1 & cmd2             Run in parallel.\n"
-          . "< > >> 2>              Redirect input or output.\n"
-          . "\"text\"                  Quote one argument.\n"
-          . "\$name                   Expand a variable.\n\n"
+          . HelpFormatter::rows([
+            ['cmd1 | cmd2', 'Pipe commands.'],
+            ['cmd1 && cmd2', 'Continue after success.'],
+            ['cmd1 || cmd2', 'Continue after failure.'],
+            ['cmd1 ; cmd2', 'Run in sequence.'],
+            ['cmd1 & cmd2', 'Run in parallel.'],
+            ['< > >> 2>', 'Redirect input or output.'],
+            ['"text"', 'Quote one argument.'],
+            ['$name', 'Expand a variable.'],
+          ], 24)
+          . "\n"
           . "\e[1;37mInternal commands\e[0m\n"
-          . "cd       Change or print the working directory.\n"
-          . "set      Manage environment variables.\n"
-          . "alias    Manage command aliases.\n"
-          . "session  Manage sessions. Alias: s.\n"
-          . "open     Open files with configured applications.\n"
-          . "help     Show MaDirector help.\n"
-          . "exit     Close sessions or quit MaDirector.\n"
-          . "\$name=x  Set or unset a shell variable.\n"
-          . "ID       Switch to a numeric session ID.\n"
+          . HelpFormatter::rows([
+            ['cd', 'Change or print the working directory.'],
+            ['set', 'Manage environment variables.'],
+            ['alias', 'Manage command aliases.'],
+            ['session', 'Manage sessions. Alias: s.'],
+            ['open', 'Open files with configured applications.'],
+            ['help', 'Show MaDirector help.'],
+            ['exit', 'Close sessions or quit MaDirector.'],
+            ['$name=x', 'Set or unset a shell variable.'],
+            ['ID', 'Switch to a numeric session ID.'],
+          ], 10)
           . "Run an internal command without arguments for detailed usage.\n";
       default:
         return "Unknown help topic \"{$argument}\".\nUse \e[1;37mhelp\e[0m to list topics.\n";
@@ -75,13 +86,15 @@ trait InternalCommands {
         $help = "";
         $help .= "\e[1;37m\"cd\" is an internal command used to change the working directory.\e[0m\n";
         $help .= "This command produces no output unless an error occurs or the current directory is requested.\n";
-        $help .= "  \e[1;37mcd       \e[0mShow this help message.\n";
-        $help .= "  \e[1;37mcd .     \e[0mPrint the current working directory (PWD).\n";
-        $help .= "  \e[1;37mcd ..    \e[0mGo up one directory level.\n";
-        $help .= "  \e[1;37mcd /     \e[0mGo to the root directory.\n";
-        $help .= "  \e[1;37mcd ~     \e[0mGo to the home directory.\n";
-        $help .= "  \e[1;37mcd -     \e[0mGo to the previous working directory. (OLDPWD)\n";
-        $help .= "  \e[1;37mcd path  \e[0mGo to the specified path; relative elements will be resolved.\n";
+        $help .= HelpFormatter::rows([
+          ['cd', 'Show this help message.'],
+          ['cd .', 'Print the current working directory (PWD).'],
+          ['cd ..', 'Go up one directory level.'],
+          ['cd /', 'Go to the root directory.'],
+          ['cd ~', 'Go to the home directory.'],
+          ['cd -', 'Go to the previous working directory. (OLDPWD)'],
+          ['cd path', 'Go to the specified path; relative elements will be resolved.'],
+        ], 10);
         return $help;
       case 'cd .':
         return $this->cwd;
@@ -133,10 +146,12 @@ trait InternalCommands {
       $help .= "Variable names and values may contain any character except \"\\0\" and \"=\".\n";
       $help .= "Use quotes (\"\") to preserve leading or trailing whitespace in names and values.\n";
       $help .= "Use the \e[1;37m\"env\"\e[0m command to list all variables.\n";
-      $help .= "  \e[1;37mset          \e[0mShow this help message.\n";
-      $help .= "  \e[1;37mset X=value  \e[0mAssign \"value\" to variable \"X\".\n";
-      $help .= "  \e[1;37mset X        \e[0mShow the value of variable \"X\".\n";
-      $help .= "  \e[1;37mset X=       \e[0mUnset variable \"X\".\n";
+      $help .= HelpFormatter::rows([
+        ['set', 'Show this help message.'],
+        ['set X=value', 'Assign "value" to variable "X".'],
+        ['set X', 'Show the value of variable "X".'],
+        ['set X=', 'Unset variable "X".'],
+      ], 14);
       return $help;
     }
     $set = trim(substr($command, 3));
@@ -177,10 +192,12 @@ trait InternalCommands {
       $help .= "\e[1;37m\"alias\" is an internal command used to manage command aliases.\e[0m\n";
       $help .= "Aliases must start with a letter and may contain letters, numbers underscores and dashes.\n";
       $help .= "Use quotes (\"\") to preserve leading or trailing whitespace in values.\n";
-      $help .= "  \e[1;37malias             \e[0mShow this help message.\n";
-      $help .= "  \e[1;37malias -l          \e[0mList all aliases.\n";
-      $help .= "  \e[1;37malias name=value  \e[0mDefine or update an alias.\n";
-      $help .= "  \e[1;37malias name=       \e[0mUnset alias \"name\".\n";
+      $help .= HelpFormatter::rows([
+        ['alias', 'Show this help message.'],
+        ['alias -l', 'List all aliases.'],
+        ['alias name=value', 'Define or update an alias.'],
+        ['alias name=', 'Unset alias "name".'],
+      ], 20);
       return $help;
     }
     if ($command === 'alias -l') {
@@ -230,12 +247,14 @@ trait InternalCommands {
       $help .= "Each session has an ID and may have a name.\n";
       $help .= "If a session does not exist, it will be created.\n";
       $help .= "The short form of this command is \e[1;37m\"s\"\e[0m. You can also switch sessions by typing the session ID without using the command.\n";
-      $help .= "  \e[1;37msession          \e[0mShow this help message.\n";
-      $help .= "  \e[1;37msession -l       \e[0mList all sessions.\n";
-      $help .= "  \e[1;37msession -n name  \e[0mSet a name for the current session.\n";
-      $help .= "  \e[1;37msession ID|name  \e[0mSwitch to the specified session.\n";
-      $help .= "  \e[1;37msession -d ID    \e[0mDelete the specified session.\n";
-      $help .= "  \e[1;37msession -c       \e[0mClear the session screen (remove all completed commands).\n";
+      $help .= HelpFormatter::rows([
+        ['session', 'Show this help message.'],
+        ['session -l', 'List all sessions.'],
+        ['session -n name', 'Set a name for the current session.'],
+        ['session ID|name', 'Switch to the specified session.'],
+        ['session -d ID', 'Delete the specified session.'],
+        ['session -c', 'Clear the session screen by removing all completed commands.'],
+      ], 22);
       return $help;
     }
     if ($command === 'session -l') {
@@ -293,7 +312,7 @@ trait InternalCommands {
   }
 
   private static function getOpenFilePath(): string {
-    return \SPTK\Config::getFilePath('open.json');
+    return AppData::file('open.json');
   }
 
   private static function loadOpenRelations(): void {
@@ -301,7 +320,7 @@ trait InternalCommands {
       return;
     }
     self::$openLoaded = true;
-    $relations = \SPTK\Config::load(self::getOpenFilePath());
+    $relations = AppData::loadJson('open.json');
     foreach ($relations as $name => $relation) {
       if (!is_array($relation)) {
         continue;
@@ -319,7 +338,7 @@ trait InternalCommands {
 
   private static function saveOpenRelations(): bool {
     self::loadOpenRelations();
-    return \SPTK\Config::save(self::getOpenFilePath(), self::$openRelations);
+    return AppData::saveJson('open.json', self::$openRelations);
   }
 
   private function openCommand(array $command) {
@@ -346,13 +365,30 @@ trait InternalCommands {
     $help = "";
     $help .= "\e[1;37m\"open\" opens files with configured applications.\e[0m\n";
     $help .= "Relations are checked in order; the first matching relation is used.\n";
-    $help .= "  \e[1;37mopen                 \e[0mShow this help message.\n";
-    $help .= "  \e[1;37mopen -l              \e[0mList relations.\n";
-    $help .= "  \e[1;37mopen FILE...         \e[0mOpen files. Shell-style globs such as *.txt are expanded.\n";
-    $help .= "  \e[1;37mopen -n N -c R -a A  \e[0mCreate or replace a relation.\n";
-    $help .= "  \e[1;37mopen -t -n N -c R -a A\e[0mMark the application as a terminal command.\n";
-    $help .= "  \e[1;37mopen -d N            \e[0mDelete a relation.\n";
-    $help .= "Placeholders: \e[1;37m%f\e[0m expands to all files; \e[1;37m%F\e[0m repeats the containing argument per file.\n";
+    $help .= HelpFormatter::rows([
+      ['open', 'Show this help message.'],
+      ['open -l', 'List configured relations.'],
+      ['open FILE...', 'Open files. Shell-style globs such as *.txt are expanded.'],
+      ['open -n NAME -c REGEXP -a APP', 'Create or replace a relation.'],
+      ['open -t -n NAME -c REGEXP -a APP', 'Run APP as a MaDirector terminal command instead of detached.'],
+      ['open -d NAME', 'Delete a relation.'],
+    ], 38);
+    $help .= "\n";
+    $help .= "Options:\n";
+    $help .= HelpFormatter::rows([
+      ['-n NAME', 'Relation name, used for listing and deleting.'],
+      ['-c REGEXP', 'File matching condition, for example /\\.txt$/.'],
+      ['-a APP', 'Application command or command template.'],
+      ['-t', 'Run the application command inside MaDirector.'],
+      ['-d NAME', 'Delete the relation with this name.'],
+    ], 12);
+    $help .= "\n";
+    $help .= "Placeholders in APP:\n";
+    $help .= HelpFormatter::rows([
+      ['%f', 'Expands to all selected files as separate quoted arguments.'],
+      ['%F', 'Repeats the containing argument once for each selected file.'],
+    ], 8);
+    $help .= "  If APP has no placeholder, selected files are appended to the end.\n";
     return $help;
   }
 
@@ -522,7 +558,7 @@ trait InternalCommands {
 
   private function openExpandPath(string $path): string {
     if (substr($path, 0, 2) === '~/') {
-      return \SPTK\Config::getHome() . substr($path, 1);
+      return $this->home() . substr($path, 1);
     }
     if (substr($path, 0, 1) !== '/') {
       return rtrim($this->cwd, '/') . '/' . $path;
@@ -621,11 +657,13 @@ trait InternalCommands {
     if ($target === false) {
       $help = "";
       $help .= "\e[1;37m\"exit\" closes a session or quits the application.\e[0m\n";
-      $help .= "  \e[1;37mexit             \e[0mShow this help message.\n";
-      $help .= "  \e[1;37mexit -c          \e[0mClose the current session if nothing is running.\n";
-      $help .= "  \e[1;37mexit -s ID|name  \e[0mCloas a specific session if nothing is running in it.\n";
-      $help .= "  \e[1;37mexit -f          \e[0mKill running commands in the target session, then close it.\n";
-      $help .= "  \e[1;37mexit -a          \e[0mQuit MaDirector.\n";
+      $help .= HelpFormatter::rows([
+        ['exit', 'Show this help message.'],
+        ['exit -c', 'Close the current session if nothing is running.'],
+        ['exit -s ID|name', 'Close a specific session if nothing is running in it.'],
+        ['exit -f', 'Kill running commands in the target session, then close it.'],
+        ['exit -a', 'Quit MaDirector.'],
+      ], 18);
       return $help;
     }
     if ($target->hasRunningCommands()) {
