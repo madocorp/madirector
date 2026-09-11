@@ -42,11 +42,12 @@ trait InternalCommands {
             ['Tab', 'Complete a command or argument.'],
             ['Delete', 'Stop or remove a command.'],
             ['Ctrl+C/Ctrl+V/Ctrl+A', 'Copy, paste, or copy command and output.'],
-            ['I', 'Enter input mode.'],
-            ['S or Backspace', 'Enter or leave scroll mode.'],
-            ['Z', 'Toggle zoom.'],
+            ['F12', 'Toggle normal/input mode, or leave scroll mode for input.'],
+            ['Shift+F12', 'Enter scroll mode from normal or input mode.'],
+            ['V', 'Enter scroll mode from normal mode.'],
+            ['Z', 'Zoom the terminal and enter input mode.'],
             ['M', 'Send input to all commands in the group.'],
-            ['Double Shift', 'Toggle input and normal mode.'],
+            ['Double Shift', 'Toggle normal/input mode, or leave scroll mode for input.'],
             ['F/B/N', 'Search/previous/next in scroll mode.'],
           ], 24);
       case "command":

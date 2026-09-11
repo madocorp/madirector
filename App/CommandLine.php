@@ -35,6 +35,7 @@ class CommandLine extends Element {
 
   public function setText(string $text): void {
     $this->input->setText($text);
+    $this->input->setCursorPosition(mb_strlen($text));
   }
 
   public function requestFocus(): void {

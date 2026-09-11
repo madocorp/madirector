@@ -8,6 +8,8 @@ use SPTK\Core\InputAction;
 use SPTK\Core\InputEvent;
 use SPTK\Core\Len;
 use SPTK\Core\Place;
+use SPTK\Core\RenderTarget;
+use SPTK\Core\SurfaceRenderTarget;
 use SPTK\Core\Theme;
 use SPTK\Widgets\Dock;
 
@@ -16,16 +18,24 @@ class Shell {
 
   private Dock $root;
   private TerminalStack $terminalArea;
+  private CommandPath $commandPath;
   private CommandLine $commandInput;
   /** @var AppSession[] */
   private array $sessions = [];
   private AppSession $session;
-  private bool $inputRedirected = false;
+  private TerminalState $terminalState;
   private $quitCallback = null;
+  private $suppressInputCallback = null;
 
-  public function __construct(private int $fontSize = TerminalView::DEFAULT_CELL_HEIGHT, ?callable $quitCallback = null) {
+  public function __construct(
+    private int $fontSize = TerminalView::DEFAULT_CELL_HEIGHT,
+    ?callable $quitCallback = null,
+    ?callable $suppressInputCallback = null
+  ) {
     $this->fontSize = max(1, $this->fontSize);
     $this->quitCallback = $quitCallback;
+    $this->suppressInputCallback = $suppressInputCallback;
+    $this->terminalState = new TerminalState();
     $this->session = $this->createSession(0);
   }
 
@@ -39,8 +49,20 @@ class Shell {
         return $this->shell->shortcut($event);
       }
 
+      public function render(RenderTarget $target): void {
+        if ($target instanceof SurfaceRenderTarget) {
+          $target->fillPixels($target->currentSurfacePixelRect(), $this->theme()->bg);
+        } else {
+          $target->fill($this->frame(), ' ', $this->theme()->fg, $this->theme()->bg);
+        }
+        parent::render($target);
+      }
+
       protected function shouldLayoutChild(Element $child): bool {
         if ($child instanceof CommandLine) {
+          return $child->isVisible();
+        }
+        if ($child instanceof CommandPath) {
           return $child->isVisible();
         }
         return true;
@@ -48,6 +70,9 @@ class Shell {
 
       protected function shouldRenderChild(Element $child): bool {
         if ($child instanceof CommandLine) {
+          return $child->isVisible();
+        }
+        if ($child instanceof CommandPath) {
           return $child->isVisible();
         }
         return true;
@@ -63,9 +88,12 @@ class Shell {
     $this->root->setTheme(new Theme(bg: '#000088'));
 
     $this->terminalArea = new TerminalStack('terminal-area');
+    $this->commandPath = new CommandPath('command-path');
     $this->commandInput = new CommandLine('command-line');
+    $this->commandPath->setWorkingDirectory($this->session->commandSession->cwd());
 
-    $this->root->place($this->commandInput, Place::dock('bottom', null, Len::separator()));
+    $this->root->place($this->commandInput, Place::dock('bottom', Len::cell(1), Len::separator()));
+    $this->root->place($this->commandPath, Place::dock('bottom', Len::cell(1)));
     $this->root->place($this->terminalArea, Place::fill());
 
     $this->commandInput->requestFocus();
@@ -73,17 +101,44 @@ class Shell {
   }
 
   public function shortcut(InputEvent $event): bool {
-    if ($event->type === 'key' && InputAction::normalizedKey($event->key) === 'F12') {
-      return $this->toggleInputRedirection();
+    if ($event->type === 'key' && $this->isShiftF12($event)) {
+      return $this->enterScrollMode();
     }
-    if ($this->inputRedirected) {
+    if ($event->type === 'key' && InputAction::normalizedKey($event->key) === 'F12') {
+      return $this->f12ModeSwitch();
+    }
+    if ($this->terminalState->isScroll()) {
+      if (InputAction::newline($event, 'madirector-terminal')) {
+        return $this->enterInputMode();
+      }
+      if (InputAction::cancel($event, 'madirector-terminal')) {
+        return $this->enterNormalMode();
+      }
       return false;
+    }
+    if ($this->terminalState->isInput()) {
+      return false;
+    }
+    if ($this->terminalSelected() && InputAction::newline($event, 'madirector-terminal')) {
+      return $this->enterInputMode();
+    }
+    if ($this->terminalSelected() && $this->isPlainKey($event, 'V')) {
+      return $this->enterScrollMode();
+    }
+    if ($this->terminalSelected() && $this->isPlainKey($event, 'Z')) {
+      return $this->enterZoomInputMode();
     }
     if (InputAction::pageUp($event, 'madirector-terminals')) {
       return $this->selectPreviousTerminal();
     }
     if (InputAction::pageDown($event, 'madirector-terminals')) {
       return $this->selectNextTerminalOrCommandLine();
+    }
+    if ($this->commandInput->isVisible() && InputAction::up($event, 'madirector-command')) {
+      return $this->browseCommandHistory(1);
+    }
+    if ($this->commandInput->isVisible() && InputAction::down($event, 'madirector-command')) {
+      return $this->browseCommandHistory(-1);
     }
     if ($this->session->runningCommand !== null && $this->session->selectedTerminalIndex !== null) {
       return InputAction::newline($event, 'madirector-command');
@@ -95,6 +150,7 @@ class Shell {
     if ($command === '') {
       return true;
     }
+    $this->session->recordHistory($command);
     $this->run($command);
     $this->commandInput->setText('');
     return true;
@@ -106,8 +162,8 @@ class Shell {
         $session->runningCommand = null;
       }
     }
-    if ($this->session->runningCommand === null && $this->inputRedirected) {
-      $this->inputRedirected = false;
+    if (!$this->session->hasRunningCommands() && $this->terminalState->isInput()) {
+      $this->terminalState->enterPrompt();
       $this->refreshTerminalStates();
       $this->showCommandInput();
       $this->terminalArea?->layout();
@@ -115,6 +171,8 @@ class Shell {
   }
 
   private function run(string $command): void {
+    $workingDirectory = $this->session->commandSession->cwd();
+    $environment = $this->session->commandSession->getenv();
     try {
       $parsedCommands = $this->session->commandSession->parse($command);
     } catch (\Throwable $e) {
@@ -122,33 +180,44 @@ class Shell {
         'sequence' => [],
         'commandString' => $command,
       ]];
-      $this->appendCompletedCommand($parsedCommands[0], "Syntax error: {$e->getMessage()}\n", 1);
+      $this->appendCompletedCommand($parsedCommands[0], "Syntax error: {$e->getMessage()}\n", 1, null, $workingDirectory, $environment);
       $this->showCommandInput();
       return;
     }
 
     $startedExternal = false;
+    $pendingStarts = [];
+    $groupId = count($parsedCommands) > 1 ? $this->session->nextGroupId++ : null;
     foreach ($parsedCommands as $parsedCommand) {
+      $workingDirectory = $this->session->commandSession->cwd();
+      $environment = $this->session->commandSession->getenv();
       if ($this->handleExitInternal($parsedCommand, $output)) {
         if ($output !== true) {
-          $this->appendCompletedCommand($parsedCommand, (string)$output);
+          $this->appendCompletedCommand($parsedCommand, (string)$output, 0, $groupId, $workingDirectory, $environment);
         }
         continue;
       }
       if ($this->handleSessionInternal($parsedCommand, $output)) {
         if ($output !== true) {
-          $this->appendCompletedCommand($parsedCommand, (string)$output);
+          $this->appendCompletedCommand($parsedCommand, (string)$output, 0, $groupId, $workingDirectory, $environment);
         }
         continue;
       }
       if ($this->session->commandSession->handleInternal($parsedCommand, $output)) {
         if ($output !== true) {
-          $this->appendCompletedCommand($parsedCommand, (string)$output);
+          $this->appendCompletedCommand($parsedCommand, (string)$output, 0, $groupId, $workingDirectory, $environment);
         }
         continue;
       }
-      $this->startExternalCommand($parsedCommand);
+      if ($groupId === null) {
+        $this->startExternalCommand($parsedCommand, null, $workingDirectory, $environment);
+      } else {
+        $pendingStarts[] = $this->appendExternalCommand($parsedCommand, $groupId, $workingDirectory, $environment);
+      }
       $startedExternal = true;
+    }
+    if ($pendingStarts !== []) {
+      $this->startPreparedCommands($pendingStarts);
     }
     if (!$startedExternal) {
       $this->showCommandInput();
@@ -299,7 +368,7 @@ class Shell {
       ksort($this->sessions, SORT_NUMERIC);
     }
     $this->session = $this->sessions[$id];
-    $this->inputRedirected = false;
+    $this->enterPromptMode();
     $this->rebuildTerminalStack();
     $this->showCommandInput();
   }
@@ -308,7 +377,7 @@ class Shell {
     foreach ($this->sessions as $session) {
       if ($session->name === $name) {
         $this->session = $session;
-        $this->inputRedirected = false;
+        $this->enterPromptMode();
         $this->rebuildTerminalStack();
         $this->showCommandInput();
         return;
@@ -349,7 +418,7 @@ class Shell {
     if ($wasCurrent) {
       $firstId = array_key_first($this->sessions);
       $this->session = $this->sessions[$firstId];
-      $this->inputRedirected = false;
+      $this->enterPromptMode();
       $this->rebuildTerminalStack();
       $this->showCommandInput();
     }
@@ -386,15 +455,19 @@ class Shell {
   private function clearCurrentSession(): void {
     $commands = [];
     $terminalBoxes = [];
+    $commandGroupIds = [];
     foreach ($this->session->commands as $index => $command) {
       if ($command->isRunning()) {
         $commands[] = $command;
         $terminalBoxes[] = $this->session->terminalBoxes[$index];
+        $commandGroupIds[] = $this->session->commandGroupIds[$index] ?? null;
       }
     }
     $this->session->commands = $commands;
     $this->session->terminalBoxes = $terminalBoxes;
+    $this->session->commandGroupIds = $commandGroupIds;
     $this->session->selectedTerminalIndex = null;
+    $this->rebuildTerminalItems();
     $this->rebuildTerminalStack();
   }
 
@@ -407,31 +480,75 @@ class Shell {
 
   private function runCommandStrings(array $commands): void {
     foreach ($commands as $command) {
+      $this->session->recordHistory($command);
       $this->run($command);
     }
   }
 
-  private function startExternalCommand(array $command): void {
+  private function browseCommandHistory(int $step): bool {
+    $command = $this->session->browseHistory($step, $this->commandInput->text());
+    if ($command !== null) {
+      $this->commandInput->setText($command);
+    }
+    return true;
+  }
+
+  private function startExternalCommand(array $command, ?int $groupId = null, ?string $workingDirectory = null, ?array $environment = null): void {
+    $this->startPreparedCommands([$this->appendExternalCommand($command, $groupId, $workingDirectory, $environment)]);
+  }
+
+  private function appendExternalCommand(array $command, ?int $groupId = null, ?string $workingDirectory = null, ?array $environment = null): RunningCommand {
     $this->hideCommandInput();
-    $this->inputRedirected = true;
-    $runningCommand = new RunningCommand($command, $this->session->commandSession->cwd(), $this->session->commandSession->getenv());
-    $terminalBox = $this->appendCommand($runningCommand);
+    $this->terminalState->enterInput();
+    $runningCommand = new RunningCommand(
+      $command,
+      $workingDirectory ?? $this->session->commandSession->cwd(),
+      $environment ?? $this->session->commandSession->getenv()
+    );
+    $terminalBox = $this->appendCommand($runningCommand, $groupId);
     $this->session->runningCommand = $runningCommand;
-    $runningCommand->start();
     $terminalBox->requestTerminalFocus();
+    return $runningCommand;
+  }
+
+  private function startPreparedCommands(array $commands): void {
+    $this->terminalArea->layout();
+    foreach ($commands as $runningCommand) {
+      $this->session->runningCommand = $runningCommand;
+      $runningCommand->start();
+    }
     $this->terminalArea->layout();
   }
 
-  private function appendCompletedCommand(array $command, string $output, int $returnValue = 0): void {
-    $runningCommand = RunningCommand::completed($command, $this->session->commandSession->cwd(), $this->session->commandSession->getenv(), $output, $returnValue);
-    $this->appendCommand($runningCommand);
+  private function appendCompletedCommand(
+    array $command,
+    string $output,
+    int $returnValue = 0,
+    ?int $groupId = null,
+    ?string $workingDirectory = null,
+    ?array $environment = null
+  ): void {
+    $runningCommand = RunningCommand::completed(
+      $command,
+      $workingDirectory ?? $this->session->commandSession->cwd(),
+      $environment ?? $this->session->commandSession->getenv(),
+      $output,
+      $returnValue
+    );
+    $this->appendCommand($runningCommand, $groupId);
   }
 
-  private function appendCommand(RunningCommand $runningCommand): TerminalBox {
+  private function appendCommand(RunningCommand $runningCommand, ?int $groupId = null): TerminalBox {
     $terminalBox = new TerminalBox('terminal-box-' . $this->session->id . '-' . count($this->session->commands), $runningCommand, $this->fontSize);
+    $terminalBox->setDoubleShiftCallback(fn() => $this->terminalShiftReleased());
     $runningCommand->attachBox($terminalBox);
+    if ($groupId !== null) {
+      $runningCommand->setInputCallback(fn(RunningCommand $source, string $stream) => $this->multiplexInput($source, $stream));
+    }
     $this->session->commands[] = $runningCommand;
     $this->session->terminalBoxes[] = $terminalBox;
+    $this->session->commandGroupIds[] = $groupId;
+    $this->addTerminalItem($terminalBox, $groupId);
     $this->session->selectedTerminalIndex = count($this->session->terminalBoxes) - 1;
     $this->refreshTerminalStates();
     $this->rebuildTerminalStack();
@@ -439,23 +556,104 @@ class Shell {
     return $terminalBox;
   }
 
-  private function toggleInputRedirection(): bool {
+  private function addTerminalItem(TerminalBox $terminalBox, ?int $groupId): void {
+    if ($groupId === null) {
+      $this->session->terminalItems[] = $terminalBox;
+      return;
+    }
+    if (!isset($this->session->terminalGroups[$groupId])) {
+      $group = new TerminalGroup('terminal-group-' . $this->session->id . '-' . $groupId);
+      $this->session->terminalGroups[$groupId] = $group;
+      $this->session->terminalItems[] = $group;
+    }
+    $this->session->terminalGroups[$groupId]->addBox($terminalBox);
+  }
+
+  private function rebuildTerminalItems(): void {
+    $this->session->terminalItems = [];
+    $this->session->terminalGroups = [];
+    foreach ($this->session->terminalBoxes as $index => $box) {
+      $this->addTerminalItem($box, $this->session->commandGroupIds[$index] ?? null);
+    }
+  }
+
+  private function multiplexInput(RunningCommand $source, string $stream): void {
+    $index = array_search($source, $this->session->commands, true);
+    if ($index === false) {
+      return;
+    }
+    $groupId = $this->session->commandGroupIds[$index] ?? null;
+    if ($groupId === null) {
+      $source->inputDirect($stream);
+      return;
+    }
+    foreach ($this->session->commands as $candidateIndex => $command) {
+      if (($this->session->commandGroupIds[$candidateIndex] ?? null) === $groupId && $command->isRunning()) {
+        $command->inputDirect($stream);
+      }
+    }
+  }
+
+  private function f12ModeSwitch(): bool {
+    if (!$this->terminalSelected()) {
+      return true;
+    }
+    $handled = $this->terminalState->switchF12($this->selectedCommandIsRunning());
+    if ($handled) {
+      $this->applyTerminalState();
+    }
+    return true;
+  }
+
+  private function enterInputMode(): bool {
     if ($this->session->selectedTerminalIndex === null || !isset($this->session->terminalBoxes[$this->session->selectedTerminalIndex])) {
       return true;
     }
     if ($this->session->commands[$this->session->selectedTerminalIndex]->isRunning() === false) {
-      $this->inputRedirected = false;
-      $this->hideCommandInput();
-      $this->refreshTerminalStates();
       return true;
     }
-    $this->inputRedirected = !$this->inputRedirected;
-    if ($this->inputRedirected) {
-      $this->session->terminalBoxes[$this->session->selectedTerminalIndex]->requestTerminalFocus();
-    }
-    $this->hideCommandInput();
-    $this->refreshTerminalStates();
+    $this->terminalState->enterInput();
+    $this->applyTerminalState();
     return true;
+  }
+
+  private function enterScrollMode(): bool {
+    if (!$this->terminalSelected()) {
+      return true;
+    }
+    $this->terminalState->enterScroll();
+    $this->applyTerminalState();
+    return true;
+  }
+
+  private function enterZoomInputMode(): bool {
+    if (!$this->terminalSelected() || !$this->selectedCommandIsRunning()) {
+      return true;
+    }
+    $this->terminalState->enterZoomInput();
+    $this->suppressInput();
+    $this->applyTerminalState();
+    return true;
+  }
+
+  private function enterNormalMode(): bool {
+    if (!$this->terminalSelected()) {
+      return true;
+    }
+    $this->terminalState->enterNormal();
+    $this->applyTerminalState();
+    return true;
+  }
+
+  public function terminalShiftReleased(): bool {
+    if (!$this->terminalSelected()) {
+      return false;
+    }
+    $handled = $this->terminalState->shiftReleased($this->selectedCommandIsRunning());
+    if ($handled) {
+      $this->applyTerminalState();
+    }
+    return $handled;
   }
 
   private function selectPreviousTerminal(): bool {
@@ -467,10 +665,8 @@ class Shell {
     } else {
       $this->session->selectedTerminalIndex = max(0, $this->session->selectedTerminalIndex - 1);
     }
-    $this->inputRedirected = false;
-    $this->hideCommandInput();
-    $this->session->terminalBoxes[$this->session->selectedTerminalIndex]->requestTerminalFocus();
-    $this->refreshTerminalStates();
+    $this->terminalState->enterNormal();
+    $this->applyTerminalState();
     $this->terminalArea?->setSelectedBox($this->session->terminalBoxes[$this->session->selectedTerminalIndex], 'top');
     return true;
   }
@@ -478,7 +674,7 @@ class Shell {
   private function selectNextTerminalOrCommandLine(): bool {
     if ($this->session->terminalBoxes === []) {
       $this->session->selectedTerminalIndex = null;
-      $this->inputRedirected = false;
+      $this->enterPromptMode();
       $this->showCommandInput();
       return true;
     }
@@ -490,14 +686,12 @@ class Shell {
     } else {
       $this->session->selectedTerminalIndex++;
     }
-    $this->inputRedirected = false;
     if ($this->session->selectedTerminalIndex === null) {
       $this->showCommandInput();
     } else {
-      $this->hideCommandInput();
-      $this->session->terminalBoxes[$this->session->selectedTerminalIndex]->requestTerminalFocus();
+      $this->terminalState->enterNormal();
+      $this->applyTerminalState();
     }
-    $this->refreshTerminalStates();
     if ($this->session->selectedTerminalIndex !== null) {
       $this->terminalArea?->setSelectedBox($this->session->terminalBoxes[$this->session->selectedTerminalIndex], 'bottom');
     }
@@ -505,40 +699,99 @@ class Shell {
   }
 
   private function refreshTerminalStates(): void {
+    $selectedGroupId = $this->selectedGroupId();
     foreach ($this->session->terminalBoxes as $index => $box) {
       $selected = $this->session->selectedTerminalIndex === $index;
+      $groupInput = $selectedGroupId !== null
+        && ($this->session->commandGroupIds[$index] ?? null) === $selectedGroupId
+        && $this->session->commands[$index]->isRunning();
       $box->setTerminalState(
         $selected,
-        $selected && $this->inputRedirected && $this->session->commands[$index]->isRunning()
+        $this->terminalState->isInput() && (($selected && $this->session->commands[$index]->isRunning()) || $groupInput),
+        $selected && $this->terminalState->isScroll(),
+        $selected && $this->terminalState->isZoomed()
       );
     }
+    $this->terminalArea?->setZoomMode($this->terminalState->isZoomed() && $this->terminalSelected());
   }
 
   private function rebuildTerminalStack(): void {
     foreach ($this->terminalArea->children() as $child) {
       $this->terminalArea->remove($child);
     }
-    foreach (array_reverse($this->session->terminalBoxes) as $box) {
-      $this->terminalArea->place($box, Place::dock('bottom', Len::content()));
+    foreach (array_reverse($this->session->terminalItems) as $item) {
+      $this->terminalArea->place($item, Place::dock('bottom', Len::content()));
     }
     $this->terminalArea->layout();
   }
 
   private function hideCommandInput(): void {
     $this->commandInput->setVisible(false);
+    $this->commandPath->setVisible(false);
     $this->root?->layout();
     $this->terminalArea?->layout();
   }
 
   private function showCommandInput(): void {
     $this->session->selectedTerminalIndex = null;
-    $this->inputRedirected = false;
+    $this->enterPromptMode();
     $this->refreshTerminalStates();
+    $this->commandPath->setWorkingDirectory($this->session->commandSession->cwd());
+    $this->commandPath->setVisible(true);
     $this->commandInput->setVisible(true);
     $this->terminalArea?->setSelectedBox(null);
     $this->root?->layout();
     $this->terminalArea?->layout();
     $this->commandInput->requestFocus();
+  }
+
+  private function enterPromptMode(): void {
+    $this->terminalState->enterPrompt();
+  }
+
+  private function terminalSelected(): bool {
+    return $this->session->selectedTerminalIndex !== null
+      && isset($this->session->terminalBoxes[$this->session->selectedTerminalIndex]);
+  }
+
+  private function isShiftF12(InputEvent $event): bool {
+    return InputAction::normalizedKey($event->key) === 'F12'
+      && !empty($event->modifiers['shift']);
+  }
+
+  private function isPlainKey(InputEvent $event, string $key): bool {
+    return $event->type === 'key'
+      && InputAction::normalizedKey($event->key) === $key
+      && empty($event->modifiers['shift'])
+      && empty($event->modifiers['ctrl'])
+      && empty($event->modifiers['alt']);
+  }
+
+  private function selectedCommandIsRunning(): bool {
+    return $this->session->selectedTerminalIndex !== null
+      && isset($this->session->commands[$this->session->selectedTerminalIndex])
+      && $this->session->commands[$this->session->selectedTerminalIndex]->isRunning();
+  }
+
+  private function selectedGroupId(): ?int {
+    if (!$this->terminalState->isInput() || $this->session->selectedTerminalIndex === null) {
+      return null;
+    }
+    return $this->session->commandGroupIds[$this->session->selectedTerminalIndex] ?? null;
+  }
+
+  private function applyTerminalState(): void {
+    $this->hideCommandInput();
+    if ($this->terminalSelected()) {
+      $this->session->terminalBoxes[$this->session->selectedTerminalIndex]->requestTerminalFocus();
+    }
+    $this->refreshTerminalStates();
+  }
+
+  private function suppressInput(): void {
+    if ($this->suppressInputCallback !== null) {
+      call_user_func($this->suppressInputCallback);
+    }
   }
 
 }

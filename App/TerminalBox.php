@@ -2,11 +2,12 @@
 
 namespace MADIR\App;
 
+use SPTK\Core\Color;
 use SPTK\Core\Len;
 use SPTK\Core\Place;
 use SPTK\Core\Rect;
 use SPTK\Core\RenderTarget;
-use SPTK\Core\Element;
+use SPTK\Core\SurfaceRenderTarget;
 use SPTK\Widgets\Dock;
 
 /** Framed command output area with header and terminal body. */
@@ -22,12 +23,13 @@ class TerminalBox extends Dock {
   private bool $selected = false;
   private bool $inputRedirected = false;
   private bool $scrollMode = false;
+  private bool $zoomed = false;
 
   public function __construct(string $name, private RunningCommand $command, private int $terminalCellHeight = TerminalView::DEFAULT_CELL_HEIGHT) {
     parent::__construct($name);
     $this->terminalCellHeight = max(1, $this->terminalCellHeight);
     $this->availableFrame = new Rect(0, 0, 80, 24);
-    $this->header = new TerminalHeader($name . '-header', $command->title(), $command->status());
+    $this->header = new TerminalHeader($name . '-header', $command->title(), $command->status(), $this->titleColor());
     $this->terminal = new TerminalView($name . '-terminal', $command, $this->terminalCellHeight);
     $this->padding = new TerminalPadding($name . '-padding');
 
@@ -36,18 +38,31 @@ class TerminalBox extends Dock {
     $this->place($this->terminal, Place::fill());
   }
 
+  public function setDoubleShiftCallback(?callable $callback): void {
+    $this->terminal->setDoubleShiftCallback($callback);
+  }
+
   public function setFrame(Rect $frame): void {
     parent::setFrame($frame);
+    if ($this->zoomed) {
+      return;
+    }
     $this->command->resize($this->maxOutputRows(), $this->availableFrame->width);
   }
 
   public function setAvailableFrame(Rect $frame): void {
     $this->availableFrame = $frame;
+    if ($this->zoomed) {
+      return;
+    }
     $this->command->resize($this->maxOutputRows(), $this->availableFrame->width);
   }
 
   public function preferredRowsForColumns(int $columns): int {
     $maxRows = $this->maxStackRows();
+    if ($this->zoomed) {
+      return $maxRows;
+    }
     if ($this->command->isAltScreenActive()) {
       return $maxRows;
     }
@@ -57,7 +72,8 @@ class TerminalBox extends Dock {
   public function refresh(): void {
     $this->setPreferredRows($this->preferredRowsForColumns(max(1, $this->frame()->width)));
     $this->header->setStatus($this->command->status());
-    $this->terminal->setTerminalState($this->selected, $this->inputRedirected, $this->scrollMode);
+    $this->header->setTitleColor($this->titleColor());
+    $this->terminal->setTerminalState($this->selected, $this->inputRedirected, $this->scrollMode, $this->zoomed);
     $this->terminal->refresh();
   }
 
@@ -65,23 +81,47 @@ class TerminalBox extends Dock {
     $this->terminal->requestFocus();
   }
 
-  public function setTerminalState(bool $selected, bool $inputRedirected, bool $scrollMode = false): void {
-    if ($this->selected !== $selected || $this->inputRedirected !== $inputRedirected || $this->scrollMode !== $scrollMode) {
+  public function setTerminalState(bool $selected, bool $inputRedirected, bool $scrollMode = false, bool $zoomed = false): void {
+    if (
+      $this->selected !== $selected
+      || $this->inputRedirected !== $inputRedirected
+      || $this->scrollMode !== $scrollMode
+      || $this->zoomed !== $zoomed
+    ) {
       $this->invalidateRender();
     }
     $this->selected = $selected;
     $this->inputRedirected = $inputRedirected;
     $this->scrollMode = $scrollMode;
-    $this->terminal->setTerminalState($selected, $inputRedirected, $scrollMode);
+    $this->zoomed = $zoomed;
+    $this->terminal->setTerminalState($selected, $inputRedirected, $scrollMode, $zoomed);
+  }
+
+  public function layout(): void {
+    if (!$this->zoomed) {
+      parent::layout();
+      return;
+    }
+    $this->header->setFrame(new Rect($this->frame->x, $this->frame->y, 0, 0));
+    $this->padding->setFrame(new Rect($this->frame->x, $this->frame->y, 0, 0));
+    $this->terminal->setFrame($this->frame);
   }
 
   public function render(RenderTarget $target): void {
     parent::render($target);
+    if ($this->zoomed) {
+      return;
+    }
     $target->drawOuterRect($this->terminal->frame(), $this->borderColor(), self::BORDER_WIDTH);
   }
 
+  public function renderZoomSurface(SurfaceRenderTarget $target, Rect $pixelFrame): void {
+    $this->terminal->renderPixelSurface($target, $pixelFrame);
+  }
+
   private function maxOutputRows(): int {
-    return TerminalView::rowsForPixelHeightWithCellHeight(max(1, $this->maxStackRows() - 2) * $this->theme->rowHeight, $this->terminalCellHeight);
+    $overhead = $this->zoomed ? 0 : 2;
+    return TerminalView::rowsForPixelHeightWithCellHeight(max(1, $this->maxStackRows() - $overhead) * $this->theme->rowHeight, $this->terminalCellHeight);
   }
 
   private function terminalRowsAsWidgetRows(int $terminalRows): int {
@@ -89,6 +129,9 @@ class TerminalBox extends Dock {
   }
 
   private function maxStackRows(): int {
+    if ($this->zoomed) {
+      return max(1, $this->availableFrame->height);
+    }
     return max(1, min($this->availableFrame->height, (int)floor($this->availableFrame->height * self::STACK_HEIGHT_RATIO)));
   }
 
@@ -105,52 +148,14 @@ class TerminalBox extends Dock {
     return '#555555';
   }
 
-}
-
-class TerminalPadding extends Element {
-
-  public function __construct(string $name) {
-    parent::__construct($name);
-    $this->setPreferredRows(1);
-  }
-
-  protected function paint(RenderTarget $target): void {
-    $target->fill($this->frame, ' ', $this->theme->fg, $this->theme->bg);
-  }
-
-}
-
-class TerminalHeader extends Element {
-
-  public function __construct(string $name, private string $title, private string $status) {
-    parent::__construct($name);
-    $this->setPreferredRows(1);
-    $this->setPreferredColumns(mb_strlen($title) + mb_strlen($status) + 1);
-  }
-
-  public function setStatus(string $status): void {
-    if ($this->status !== $status) {
-      $this->status = $status;
-      $this->invalidateRender();
+  private function titleColor(): Color|string {
+    if ($this->command->isRunning()) {
+      return '#00ffff';
     }
-  }
-
-  protected function paint(RenderTarget $target): void {
-    $width = max(0, $this->frame->width);
-    if ($width === 0) {
-      return;
+    if ($this->command->failed()) {
+      return '#ff5555';
     }
-    $status = mb_substr($this->status, 0, $width);
-    $statusWidth = mb_strlen($status);
-    $titleWidth = max(0, $width - $statusWidth - 1);
-    $title = mb_substr($this->title, 0, $titleWidth);
-    $target->fill($this->frame, ' ', $this->theme->fg, $this->theme->bg);
-    if ($title !== '') {
-      $target->write($this->frame->x, $this->frame->y, $title, $this->theme->fg, $this->theme->bg);
-    }
-    if ($status !== '') {
-      $target->write($this->frame->x + $width - $statusWidth, $this->frame->y, $status, $this->theme->muted, $this->theme->bg);
-    }
+    return $this->theme->fg;
   }
 
 }

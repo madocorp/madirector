@@ -17,6 +17,7 @@ class RunningCommand {
   private bool $ptyReady = false;
   private int $rows = 24;
   private int $cols = 80;
+  private $inputCallback = null;
 
   public function __construct(
     private array $command,
@@ -75,6 +76,10 @@ class RunningCommand {
     $this->box?->refresh();
   }
 
+  public function setInputCallback(?callable $inputCallback): void {
+    $this->inputCallback = $inputCallback;
+  }
+
   public function resize(int $rows, int $cols): void {
     $rows = max(1, $rows);
     $cols = max(1, $cols);
@@ -91,6 +96,14 @@ class RunningCommand {
   }
 
   public function input(string $stream): void {
+    if ($this->inputCallback !== null) {
+      call_user_func($this->inputCallback, $this, $stream);
+      return;
+    }
+    $this->inputDirect($stream);
+  }
+
+  public function inputDirect(string $stream): void {
     if ($this->cid === null || !$this->isRunning()) {
       return;
     }
@@ -121,18 +134,38 @@ class RunningCommand {
   }
 
   public function title(): string {
-    return $this->command['commandString'];
+    return $this->promptPath() . '$ ' . $this->command['commandString'];
   }
 
   public function status(): string {
+    $started = date('Y-m-d H:i:s', (int)$this->started);
     if ($this->isRunning()) {
-      return 'Running since ' . date('Y-m-d H:i:s', (int)$this->started);
+      return sprintf('[%s]', $started);
     }
-    return sprintf('Exit %d (%.3fs)', (int)$this->returnValue, ($this->ended ?? microtime(true)) - $this->started);
+    return sprintf('#%d (%s) [%s]', (int)$this->returnValue, $this->formatDuration(($this->ended ?? microtime(true)) - $this->started), $started);
   }
 
   public function isRunning(): bool {
     return $this->ended === null;
+  }
+
+  public function failed(): bool {
+    return !$this->isRunning() && (int)$this->returnValue !== 0;
+  }
+
+  private function formatDuration(float $seconds): string {
+    if ($seconds < 60) {
+      return sprintf('%.3fs', $seconds);
+    }
+    if ($seconds < 3600) {
+      return sprintf('%.1fm', $seconds / 60);
+    }
+    return sprintf('%.1fh', $seconds / 3600);
+  }
+
+  private function promptPath(): string {
+    $path = rtrim($this->workingDirectory, '/');
+    return $path === '' ? '/' : $path;
   }
 
 }
