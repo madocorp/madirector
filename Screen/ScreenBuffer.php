@@ -95,6 +95,33 @@ class ScreenBuffer {
     }
   }
 
+  protected function resizeScreen($screen, $rows, $cols) {
+    $resized = [];
+    for ($i = 0; $i < $rows; $i++) {
+      $line = $screen[$i] ?? [];
+      $fillCell = $this->terminalBackgroundCell();
+      for ($j = 0; $j < $cols; $j++) {
+        if (!isset($line[$j])) {
+          $line[$j] = $fillCell;
+        }
+      }
+      if (count($line) > $cols) {
+        $line = array_slice($line, 0, $cols);
+      }
+      $resized[$i] = $line;
+    }
+    return $resized;
+  }
+
+  protected function terminalBackgroundCell() {
+    return [
+      self::GLYPH => ' ',
+      self::BG => $this->parser->colors[0],
+      self::FG => $this->parser->colors[7],
+      self::ATTR => 0
+    ];
+  }
+
   public function setCurrentBuffer($buffer) {
     $state = [
       'row' => $this->row,
@@ -440,11 +467,11 @@ class ScreenBuffer {
 
   public function scrollRegion($n, $m) {
     $this->pendingWrap = false;
-    if ($m <= 1 || $m >= $this->cols) {
-      $m = $this->cols - 1;
+    if ($m <= 1 || $m > $this->rows) {
+      $m = $this->rows;
     }
     if ($n < 1) {
-      $n = 0;
+      $n = 1;
     }
     if ($n > $m) {
       $n = $m - 1;
@@ -511,9 +538,9 @@ class ScreenBuffer {
           }
         }
       }
-      return $rows;
+      return $this->normalizeRows($rows);
     } else {
-      return $this->currentScreen;
+      return $this->normalizeRows($this->currentScreen);
     }
   }
 
@@ -624,10 +651,15 @@ class ScreenBuffer {
     }
     $this->rows = $rows;
     $this->cols = $cols;
-    $currentScreen = &$this->currentScreen;
-    $this->currentScreen = &$this->altScreen;
-    $this->initScreen();
-    $this->currentScreen = &$currentScreen;
+    $this->mainScreen = $this->resizeScreen($this->mainScreen, $rows, $cols);
+    $this->altScreen = $this->resizeScreen($this->altScreen, $rows, $cols);
+    if ($this->altScreenActive) {
+      $this->currentScreen = &$this->altScreen;
+    } else {
+      $this->currentScreen = &$this->mainScreen;
+    }
+    $this->row = max(0, min($this->row, $rows - 1));
+    $this->col = max(0, min($this->col, $cols - 1));
     $this->scrollRegionStart = 0;
     $this->scrollRegionEnd = $rows - 1;
   }
@@ -653,6 +685,7 @@ class ScreenBuffer {
     $runs = [];
     $wrap = [];
     foreach ($rows as $row) {
+      $row = $this->normalizeRow($row);
       $line = '';
       $run = '';
       $packedAttr = pack('LLL',$row[0][self::BG], $row[0][self::FG], $row[0][self::ATTR]);
@@ -683,6 +716,29 @@ class ScreenBuffer {
       $wrap[] = [$wrappable, $wrapped];
     }
     return [$lines, $runs, $wrap];
+  }
+
+  protected function normalizeRows($rows) {
+    $rows = array_values($rows);
+    for ($i = 0; $i < $this->rows; $i++) {
+      $rows[$i] = $this->normalizeRow($rows[$i] ?? null);
+    }
+    return array_slice($rows, 0, $this->rows);
+  }
+
+  protected function normalizeRow($row) {
+    if (!is_array($row)) {
+      return $this->emptyLine();
+    }
+    for ($j = 0; $j < $this->cols; $j++) {
+      if (!isset($row[$j])) {
+        $row[$j] = $this->terminalBackgroundCell();
+      }
+    }
+    if (count($row) > $this->cols) {
+      $row = array_slice($row, 0, $this->cols);
+    }
+    return $row;
   }
 
   protected function linesToRows($lines, $runs, $wrap) {

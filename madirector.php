@@ -16,7 +16,14 @@ CommanderHandler::init();
 
 $app = new SdlApp('MADIR');
 $fontSize = 16;
-$shell = new Shell($fontSize, fn() => $app->quit());
+$shell = new Shell(
+  $fontSize,
+  fn() => $app->quit(),
+  function() use ($app): void {
+    $app->suppressInput();
+    $app->resumeInput();
+  }
+);
 CommanderHandler::setPeriodicRefreshCallback(fn() => $shell->poll());
 $app->addTimer(20, fn() => CommanderHandler::loop());
 $app->addWindow($shell->build(), new SdlWindowOptions(
