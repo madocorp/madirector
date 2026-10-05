@@ -4,10 +4,10 @@ namespace MADIR\Completion\Provider;
 
 class History implements \MADIR\Completion\Provider {
 
-  public function getCandidates(array $argv, \MADIR\Command\Session $session): array {
+  public function getCandidates(array $argv, \MADIR\Command\Session|\MADIR\App\CommandSession $session): array {
     $candidates = [];
     $lastArgv = end($argv);
-    $search = substr($lastArgv, 1);
+    $search = $lastArgv;
     $historyList = $session->getHistory();
     foreach ($historyList as $command) {
       $score = 0;

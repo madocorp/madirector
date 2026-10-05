@@ -8,7 +8,7 @@ class InternalCommand implements \MADIR\Completion\Provider {
     'cd', 'set', 'alias', 'session', 'open', 'help', 'exit'
   ];
 
-  public function getCandidates(array $argv, \MADIR\Command\Session $session): array {
+  public function getCandidates(array $argv, \MADIR\Command\Session|\MADIR\App\CommandSession $session): array {
     $candidates = [];
     foreach ($this->commands as $command) {
       $score = 0;

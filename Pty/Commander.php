@@ -10,9 +10,9 @@ class Commander {
   private $isChild = false;
 
   public function __construct($commanderSocket) {
-    \SPTK\Autoload::load('\MADIR\Pty\Pty');
-    \SPTK\Autoload::load('\MADIR\Pty\Executor');
-    \SPTK\Autoload::load('\MADIR\Command\CommandParser');
+    class_exists(Pty::class);
+    class_exists(Executor::class);
+    class_exists(\MADIR\Command\CommandParser::class);
     $this->commanderSocket = $commanderSocket;
     Libc::setNonBlocking($this->commanderSocket);
     cli_set_process_title('MADIRCommander');

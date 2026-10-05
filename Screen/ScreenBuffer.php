@@ -544,6 +544,31 @@ class ScreenBuffer {
     }
   }
 
+  /** Read a viewport from the history and live screen as one document. */
+  public function getDocumentRows(int $offset, int $count): array {
+    $offset = max(0, $offset);
+    $count = max(0, $count);
+    if ($this->altScreenActive) {
+      return array_map($this->normalizeRow(...), array_slice($this->currentScreen, $offset, $count));
+    }
+    $historyCount = count($this->scrollBuffer);
+    $rows = [];
+    if ($offset < $historyCount) {
+      $historyLength = min($count, $historyCount - $offset);
+      $rows = $this->linesToRows(
+        array_slice($this->scrollBuffer, $offset, $historyLength),
+        array_slice($this->scrollRuns, $offset, $historyLength),
+        array_slice($this->scrollWrap, $offset, $historyLength)
+      );
+    }
+    $screenOffset = max(0, $offset - $historyCount);
+    $screenRows = array_slice($this->currentScreen, $screenOffset, $count - count($rows));
+    foreach ($screenRows as $row) {
+      $rows[] = $this->normalizeRow($row);
+    }
+    return $rows;
+  }
+
   public function getLines() {
     if (!$this->altScreenActive) {
       $rows = array_slice($this->currentScreen, 0, $this->mainHeight);

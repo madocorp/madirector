@@ -8,7 +8,7 @@ class Help implements \MADIR\Completion\Provider {
     'about', 'key', 'command'
   ];
 
-  public function getCandidates(array $argv, \MADIR\Command\Session $session): array {
+  public function getCandidates(array $argv, \MADIR\Command\Session|\MADIR\App\CommandSession $session): array {
     $argument = end($argv);
     return array_values(array_filter($this->topics, function ($topic) use ($argument) {
       return strpos($topic, $argument) === 0;
@@ -16,4 +16,3 @@ class Help implements \MADIR\Completion\Provider {
   }
 
 }
-

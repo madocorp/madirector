@@ -23,6 +23,8 @@ class CommandSession {
   ];
   private static bool $aliasLoaded = false;
   private $runCommandStringsCallback = null;
+  private $completionHistory = null;
+  private $completionSessions = null;
 
   public function __construct() {
     $this->cwd = getcwd();
@@ -37,6 +39,20 @@ class CommandSession {
 
   public function setRunCommandStringsCallback(?callable $callback): void {
     $this->runCommandStringsCallback = $callback;
+  }
+
+  /** Expose app session data to the retained completion providers. */
+  public function setCompletionSources(callable $history, callable $sessions): void {
+    $this->completionHistory = $history;
+    $this->completionSessions = $sessions;
+  }
+
+  public function getHistory(): array {
+    return $this->completionHistory === null ? [] : ($this->completionHistory)();
+  }
+
+  public function getSessionList(): array {
+    return $this->completionSessions === null ? [] : ($this->completionSessions)();
   }
 
   public function handleInternal(array $command, mixed &$output): bool {

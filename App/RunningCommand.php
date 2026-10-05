@@ -18,6 +18,7 @@ class RunningCommand {
   private int $rows = 24;
   private int $cols = 80;
   private $inputCallback = null;
+  private $refreshCallback = null;
 
   public function __construct(
     private array $command,
@@ -41,10 +42,15 @@ class RunningCommand {
     $this->box = $box;
   }
 
+  /** Notify the current tile UI when this command's screen or status changes. */
+  public function setRefreshCallback(?callable $callback): void {
+    $this->refreshCallback = $callback;
+  }
+
   public function start(): void {
     $this->started = microtime(true);
     $this->cid = CommanderHandler::runCommand($this);
-    $this->box?->refresh();
+    $this->refresh();
   }
 
   public function getCommandMessage(): string {
@@ -61,7 +67,7 @@ class RunningCommand {
   public function output(string $stream): void {
     $this->ptyReady = true;
     $this->buffer->parse($stream);
-    $this->box?->refresh();
+    $this->refresh();
   }
 
   public function end(int|false $returnValue): void {
@@ -69,11 +75,14 @@ class RunningCommand {
     $this->returnValue = $returnValue;
     $this->ended = microtime(true);
     $this->buffer->cursor(false);
-    $this->box?->refresh();
+    $this->refresh();
   }
 
   public function refresh(): void {
     $this->box?->refresh();
+    if ($this->refreshCallback !== null) {
+      call_user_func($this->refreshCallback);
+    }
   }
 
   public function setInputCallback(?callable $inputCallback): void {
@@ -92,7 +101,7 @@ class RunningCommand {
     if ($this->cid !== null && $this->ptyReady && $this->isRunning()) {
       CommanderHandler::sendSize($this->cid, $rows, $cols);
     }
-    $this->box?->refresh();
+    $this->refresh();
   }
 
   public function input(string $stream): void {

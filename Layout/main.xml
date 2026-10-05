@@ -1,0 +1,6 @@
+<Screen>
+  <Event type="keyDown" action="MADIR\App\Controller::keyDown" />
+  <Event type="textInput" action="MADIR\App\Controller::textInput" />
+  <Event type="keyUp" action="MADIR\App\Controller::keyUp" />
+  <Layout direction="vertical" />
+</Screen>

@@ -7,7 +7,7 @@ class Command implements \MADIR\Completion\Provider {
   protected static $commands = [];
   protected static $dirs = [];
 
-  public function getCandidates(array $argv, \MADIR\Command\Session $session): array {
+  public function getCandidates(array $argv, \MADIR\Command\Session|\MADIR\App\CommandSession $session): array {
     self::cacheCommands($session);
     $candidates = [];
     $longEnough = mb_strlen($argv[0]) > 3;
@@ -62,6 +62,9 @@ class Command implements \MADIR\Completion\Provider {
       }
     }
     foreach (self::$dirs as $dir => $mtime) {
+      if (!is_dir($dir)) {
+        continue;
+      }
       $mtimeNow = filemtime($dir);
       if ($mtime < $mtimeNow) {
         if (!is_dir($dir)) {
@@ -74,6 +77,7 @@ class Command implements \MADIR\Completion\Provider {
             self::$commands[$dir][] = $file;
           }
         }
+        self::$dirs[$dir] = $mtimeNow;
       }
     }
   }

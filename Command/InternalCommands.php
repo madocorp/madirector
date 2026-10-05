@@ -11,7 +11,7 @@ trait InternalCommands {
 
   private function help($command) {
     $argument = trim(substr($command, 4));
-    $appDir = dirname(APP_PATH);
+    $appDir = APP_DIR;
     switch ($argument) {
       case "":
         return HelpFormatter::rows([
@@ -32,23 +32,33 @@ trait InternalCommands {
       case "key":
         return "\e[1;37mKeyboard shortcuts\e[0m\n"
           . HelpFormatter::rows([
-            ['Enter', 'Run a command or enter input mode.'],
-            ['Escape', 'Leave scroll mode.'],
-            ['Up/Down', 'Browse history or commands.'],
-            ['Left/Right', 'Move within a command group.'],
-            ['Home/End', 'Select the first or last command.'],
-            ['Page Up/Page Down', 'Select the previous or next command.'],
-            ['Ctrl+Left/Ctrl+Right', 'Switch sessions.'],
-            ['Tab', 'Complete a command or argument.'],
-            ['Delete', 'Stop or remove a command.'],
-            ['Ctrl+C/Ctrl+V/Ctrl+A', 'Copy, paste, or copy command and output.'],
-            ['F12', 'Toggle normal/input mode, or leave scroll mode for input.'],
-            ['Shift+F12', 'Enter scroll mode from normal or input mode.'],
-            ['V', 'Enter scroll mode from normal mode.'],
-            ['Z', 'Zoom the terminal and enter input mode.'],
-            ['M', 'Send input to all commands in the group.'],
-            ['Double Shift', 'Toggle normal/input mode, or leave scroll mode for input.'],
-            ['F/B/N', 'Search/previous/next in scroll mode.'],
+            ['Enter', 'Run a command; normal to input/scroll; scroll to input/normal.'],
+            ['Shift+Enter', 'Normal to scroll mode.'],
+            ['S', 'Toggle scroll mode from normal or scroll mode.'],
+            ['Escape', 'Scroll to normal mode.'],
+            ['F12', 'Normal/scroll to input; input to normal.'],
+            ['Shift+F12', 'Normal/input to scroll mode.'],
+            ['Double Shift', 'Scroll to input; input to normal.'],
+            ['I', 'Normal to input mode.'],
+            ['G', 'Normal to shared input for the selected group.'],
+            ['F', 'Enter scroll mode and search the selected terminal.'],
+            ['P / N', 'Previous / next search match in scroll mode.'],
+            ['Z / F11', 'Zoom into input mode.'],
+            ['Shift+Z / Shift+F11', 'Zoom into scroll mode.'],
+            ['Arrow keys', 'Move within and between terminal groups.'],
+            ['Up/Down', 'Browse prompt history or terminal scrollback.'],
+            ['PageUp/PageDown', 'Move by group; move by page in scroll mode.'],
+            ['Ctrl+PageUp/Down', 'Scroll: document start/end; normal: move by group.'],
+            ['Home/End', 'Normal: first terminal / CLI; scroll: line start/end.'],
+            ['Ctrl+Left/Right', 'Switch between existing sessions in normal mode.'],
+            ['Shift+movement', 'Select terminal text in scroll mode.'],
+            ['Ctrl+A / Ctrl+C', 'Select all / copy in scroll mode.'],
+            ['Ctrl+Insert', 'Copy in scroll mode.'],
+            ['Ctrl+V', 'Paste into the terminal in input mode.'],
+            ['Tab', 'Complete the command line or open suggestions.'],
+            ['X', 'Request removal of a finished tile; Y/Enter confirms, N/Esc cancels.'],
+            ['Delete', 'Open signals for the selected running terminal.'],
+            ['Shift+Delete', 'Open signals for its running command group.'],
           ], 24);
       case "command":
         return "\e[1;37mShell syntax\e[0m\n"
@@ -109,7 +119,7 @@ trait InternalCommands {
         break;
       case 'cd ~':
         $this->pwd = $this->cwd;
-        $this->cwd = \SPTK\Config::getHome();
+        $this->cwd = getenv('HOME') ?: $this->cwd;
         break;
       case 'cd -':
         list($this->cwd, $this->pwd) = [$this->pwd, $this->cwd];
@@ -120,7 +130,7 @@ trait InternalCommands {
         if (substr($path, 0, 2) === './') {
           $path = $this->cwd . substr($path, 1);
         } else if (substr($path, 0, 2) === '~/') {
-          $home = \SPTK\Config::getHome();
+          $home = getenv('HOME') ?: $this->cwd;
           $path = $home . substr($path, 1);
         } else if (substr($path, 0, 1) !== '/') {
           $path = rtrim($this->cwd, '/') . '/' . $path;
