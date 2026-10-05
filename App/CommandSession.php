@@ -41,7 +41,7 @@ class CommandSession {
     $this->runCommandStringsCallback = $callback;
   }
 
-  /** Expose app session data to the retained completion providers. */
+  /** Expose app session data to completion providers. */
   public function setCompletionSources(callable $history, callable $sessions): void {
     $this->completionHistory = $history;
     $this->completionSessions = $sessions;

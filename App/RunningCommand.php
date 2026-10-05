@@ -9,7 +9,7 @@ use MADIR\Screen\ScreenBuffer;
 class RunningCommand {
 
   private ScreenBuffer $buffer;
-  private ?TerminalBox $box = null;
+  private TerminalImages $images;
   private ?int $cid = null;
   private float $started;
   private ?float $ended = null;
@@ -26,6 +26,8 @@ class RunningCommand {
     private array $environment
   ) {
     $this->buffer = new ScreenBuffer($this->rows, $this->cols);
+    $this->images = new TerminalImages($this->buffer, $this->inputDirect(...));
+    $this->buffer->setTerminal($this->images);
     $this->started = microtime(true);
   }
 
@@ -36,10 +38,6 @@ class RunningCommand {
     }
     $runningCommand->end($returnValue);
     return $runningCommand;
-  }
-
-  public function attachBox(TerminalBox $box): void {
-    $this->box = $box;
   }
 
   /** Notify the current tile UI when this command's screen or status changes. */
@@ -79,7 +77,6 @@ class RunningCommand {
   }
 
   public function refresh(): void {
-    $this->box?->refresh();
     if ($this->refreshCallback !== null) {
       call_user_func($this->refreshCallback);
     }
@@ -130,12 +127,24 @@ class RunningCommand {
     return $this->buffer;
   }
 
+  /** Return this command's decoded inline images and document placements. */
+  public function images(): TerminalImages {
+    return $this->images;
+  }
+
   public function outputRows(): int {
     $lines = $this->buffer->getLines();
     while ($lines !== [] && end($lines) === '') {
       array_pop($lines);
     }
-    return max(1, min($this->rows, count($lines)));
+    $rows = count($lines);
+    $screenTop = $this->buffer->getCursorDocumentPosition()[0] - $this->buffer->getCursorPosition()[0];
+    foreach ($this->images->placements() as $placement) {
+      if ($placement['alternate'] === $this->buffer->isAltScreenActive()) {
+        $rows = max($rows, $placement['row'] - $screenTop + $placement['rows']);
+      }
+    }
+    return max(1, min($this->rows, $rows));
   }
 
   public function isAltScreenActive(): bool {

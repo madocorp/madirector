@@ -14,7 +14,7 @@ class CommandParser {
   private $aliasCommandStrings = [];
   private $resolve;
 
-  public function __construct(object $session, bool $resolve = true) {
+  public function __construct(\MADIR\App\CommandSession $session, bool $resolve = true) {
     $this->session = $session;
     $this->resolve = $resolve;
   }
@@ -210,7 +210,7 @@ class CommandParser {
     if (!$this->resolve) {
       return false;
     }
-    $aliasList = method_exists($this->session, 'aliases') ? $this->session->aliases() : Session::getAliasList();
+    $aliasList = $this->session->aliases();
     $command = $this->peekValue();
     if (!isset($aliasList[$command])) {
       return false;

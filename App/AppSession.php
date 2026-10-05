@@ -8,21 +8,14 @@ class AppSession {
   public CommandSession $commandSession;
   /** @var RunningCommand[] */
   public array $commands = [];
-  /** @var TerminalBox[] */
-  public array $terminalBoxes = [];
-  /** @var TerminalBox|TerminalGroup[] */
-  public array $terminalItems = [];
   /** @var array<int, int|null> */
   public array $commandGroupIds = [];
-  /** @var array<int, TerminalGroup> */
-  public array $terminalGroups = [];
   public int $nextGroupId = 1;
   /** @var string[] */
   public array $history = [];
   public int $historyOffset = 0;
   public string $historyDraft = '';
   public ?RunningCommand $runningCommand = null;
-  public ?int $selectedTerminalIndex = null;
   public ?string $name = null;
 
   public function __construct(public int $id) {

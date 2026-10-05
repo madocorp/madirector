@@ -269,11 +269,25 @@ class ANSIParser {
     }
     switch ($final) {
       case 'm':
-        foreach ($params as $i => $param) {
+        for ($i = 0; $i < count($params); $i++) {
+          $param = $params[$i];
           if (is_null($param)) {
             $param = 0;
           }
           if (!is_int($param)) {
+            continue;
+          }
+          if (($param === 38 || $param === 48) && ($params[$i + 1] ?? null) === 2) {
+            $components = array_slice($params, $i + 2, 3);
+            if (count($components) === 3 && count(array_filter($components, static fn($value): bool => is_int($value) && $value >= 0 && $value <= 255)) === 3) {
+              $color = ($components[0] << 16) | ($components[1] << 8) | $components[2];
+              if ($param === 38) {
+                $this->screen->setForeground($color);
+              } else {
+                $this->screen->setBackground($color);
+              }
+            }
+            $i += 4;
             continue;
           }
           if ($param == 0) {
@@ -312,17 +326,6 @@ class ANSIParser {
           }
           if ($param >= 100 && $param <= 107) {
             $this->screen->setBackground($this->brightColors[$param - 100]);
-          }
-          if (($param == 38 || $param == 48) && $params[$i + 1] == 2) {
-            $r = (int)$params[$i + 2] ?? 0;
-            $g = (int)$params[$i + 3] ?? 0;
-            $b = (int)$params[$i + 4] ?? 0;
-            if ($param == 38) {
-              $this->screen->setForeground($r << 8 + $g << 16 + $b);
-            }
-            if ($param == 48) {
-              $this->screen->setBackground($r << 8 + $g << 16 + $b);
-            }
           }
         }
         break;
@@ -470,7 +473,7 @@ class ANSIParser {
       if (substr($sequence, -1) === "\e") {
         $sequence = substr($sequence, 0, -1);
       }
-      Picture::parseAnsii($sequence, $this->screen->getTerminal());
+      Picture::parseAnsi($sequence, $this->screen->getTerminal());
     }
   }
 

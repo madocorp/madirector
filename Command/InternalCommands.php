@@ -251,55 +251,6 @@ trait InternalCommands {
     return "Alias defined.\n\e[1;37m{$name} =\e[0m \"{$value}\"\n";
   }
 
-  private function session($command) {
-    if ($command === 'session') {
-      $help = "";
-      $help .= "\e[1;37m\"session\" is an internal command used to manage sessions.\e[0m\n";
-      $help .= "Each session has an ID and may have a name.\n";
-      $help .= "If a session does not exist, it will be created.\n";
-      $help .= "The short form of this command is \e[1;37m\"s\"\e[0m. You can also switch sessions by typing the session ID without using the command.\n";
-      $help .= HelpFormatter::rows([
-        ['session', 'Show this help message.'],
-        ['session -l', 'List all sessions.'],
-        ['session -n name', 'Set a name for the current session.'],
-        ['session ID|name', 'Switch to the specified session.'],
-        ['session -d ID', 'Delete the specified session.'],
-        ['session -c', 'Clear the session screen by removing all completed commands.'],
-      ], 22);
-      return $help;
-    }
-    if ($command === 'session -l') {
-      return Session::getSessionListText();
-    } else if (strpos($command, 'session -d') === 0) {
-      $id = trim(substr($command, 10));
-      if ($id === '') {
-        return "Specify a sessionId!\n";
-      } else {
-        $id = (int)$id;
-      }
-      if (Session::delete($id)) {
-        return Session::getSessionListText();
-      } else {
-        return "You can't delete the last session.\n";
-      }
-    } else if (strpos($command, 'session -n') === 0) {
-      $name = trim(substr($command, 10));
-      Session::getCurrent()->setName($name);
-      return true;
-    } else if (strpos($command, 'session -c') === 0) {
-      Session::getCurrent()->clear();
-      return true;
-    } else {
-      $id = trim(substr($command, 7));
-      if (!ctype_digit($id)) {
-        Session::selectSessionByName($id);
-      } else {
-        Session::selectSession($id, false);
-      }
-      return true;
-    }
-  }
-
   private function variable($command) {
     $a = explode('=', $command);
     $name = substr($a[0], 1);
@@ -624,68 +575,6 @@ trait InternalCommands {
     if ($result !== 0) {
       $errors[] = "Failed to open with command: {$command}";
     }
-  }
-
-  private function exitCommand(array $command) {
-    $commandString = trim($command['commandString']);
-    $argv = $command['sequence'][0]['pipeline'][0]['argv'] ?? ['exit'];
-    if (($argv[0] ?? null) !== 'exit') {
-      return "Syntax error!\n";
-    }
-    $force = false;
-    $quiet = false;
-    $target = false;
-    for ($i = 1; $i < count($argv); $i++) {
-      switch ($argv[$i]) {
-        case '-a':
-          \SPTK\App::$instance->quit();
-          return true;
-        case '-c':
-          $target = $this;
-          break;
-        case '-f':
-          $force = true;
-          break;
-        case '-s':
-          $i++;
-          $sessionName = $argv[$i] ?? '';
-          if ($sessionName === '') {
-            return "Specify a session.\n";
-          }
-          if (ctype_digit($sessionName)) {
-            $target = Session::getById((int)$sessionName);
-          } else {
-            $target = Session::getByName($sessionName);
-          }
-          if ($target === false) {
-            return "Session not found.\n";
-          }
-          break;
-        default:
-          return "Unknown option \"{$argv[$i]}\".\n";
-      }
-    }
-    if ($target === false) {
-      $help = "";
-      $help .= "\e[1;37m\"exit\" closes a session or quits the application.\e[0m\n";
-      $help .= HelpFormatter::rows([
-        ['exit', 'Show this help message.'],
-        ['exit -c', 'Close the current session if nothing is running.'],
-        ['exit -s ID|name', 'Close a specific session if nothing is running in it.'],
-        ['exit -f', 'Kill running commands in the target session, then close it.'],
-        ['exit -a', 'Quit MaDirector.'],
-      ], 18);
-      return $help;
-    }
-    if ($target->hasRunningCommands()) {
-      if ($force) {
-        $target->terminateRunningCommands();
-      } else {
-        return "Session has running commands.\nUse \e[1;37-f\e[0m to kill them.\n";
-      }
-    }
-    Session::delete($target->id());
-    return true;
   }
 
   private function resolveQuotation($name) {

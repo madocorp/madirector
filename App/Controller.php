@@ -6,7 +6,7 @@ use MADIR\Pty\CommanderHandler;
 use SPTK\Events\EventContext;
 use SPTK\SDLWrapper\SDL;
 
-/** Route current-SPTK lifecycle and shortcut events into MaDirector's session UI. */
+/** Route lifecycle and shortcut events into MaDirector's session UI. */
 final class Controller {
 
   private static ?Director $director = null;
@@ -17,7 +17,7 @@ final class Controller {
     self::$director = new Director($window, $window->screen('main'));
   }
 
-  /** Poll the retained PTY commander on the SPTK event loop thread. */
+  /** Poll the PTY commander on the SPTK event loop thread. */
   public static function tick(EventContext $event): void {
     CommanderHandler::loop();
     self::$director?->poll();
