@@ -5,7 +5,8 @@ namespace MADIR\App;
 use MADIR\Screen\ScreenBuffer;
 use SPTK\Core\{Cell, Clipboard, Color, ScrollIndicator, Style, TextCursor, Widget};
 use SPTK\Events\{KeyNormalizer, WidgetEventEmitter};
-use SPTK\Rendering\{GridWriter, TextMetrics};
+use SPTK\Layout\Tile;
+use SPTK\Rendering\{GridWriter, PixelRenderer, TextMetrics};
 use SPTK\SDLWrapper\SDL;
 use SPTK\Widgets\Input\Input;
 
@@ -22,6 +23,7 @@ final class TerminalTile extends Widget {
   private bool $suppressNextTextInput = false;
   private bool $deleteConfirmation = false;
   private bool $searchMode = false;
+  private bool $paintedImages = false;
   private ?Input $searchInput = null;
   private ?TerminalSearch $search = null;
   private int $maximumBodyRows = 23;
@@ -149,6 +151,53 @@ final class TerminalTile extends Widget {
   /** Paint the tile padding with the app color while terminal cells stay black. */
   public function background(): Color {
     return $this->zoomed ? $this->black : $this->style->background;
+  }
+
+  /** Inline images require the full terminal fragment to be repainted. */
+  public function paintsPixels(): bool {
+    return $this->paintedImages || $this->command->images()->hasPlacements();
+  }
+
+  /** Clip inline images to the terminal tile's visible stack fragment. */
+  public function clipsPixelViewport(): bool {
+    return true;
+  }
+
+  /** Terminal glyphs remain visible above inline images. */
+  public function pixelBehindText(): bool {
+    return $this->command->images()->hasPlacements();
+  }
+
+  /** Paint image placements at document cells below the title row. */
+  public function paintClippedPixels(PixelRenderer $renderer, Tile $area, Tile $clip, bool $selected): void {
+    $placements = $this->command->images()->placements();
+    $this->paintedImages = $placements !== [];
+    if ($placements === []) {
+      return;
+    }
+    $cellWidth = \SPTK\App::font()->cellWidth();
+    $cellHeight = \SPTK\App::font()->cellHeight();
+    $bodyStart = $this->zoomed && !$this->searchMode ? 0 : 1;
+    $bodyTop = $area->y + $bodyStart * $cellHeight;
+    $bodyClip = $clip->intersect(new Tile($area->x, $bodyTop, $area->width, max(0, $area->height - $bodyStart * $cellHeight)));
+    if ($bodyClip->width < 1 || $bodyClip->height < 1) {
+      return;
+    }
+    $buffer = $this->command->buffer();
+    $documentTop = $this->scrollMode ? $this->scrollOffset
+      : $buffer->getCursorDocumentPosition()[0] - $buffer->getCursorPosition()[0];
+    foreach ($placements as $placement) {
+      if ($placement['alternate'] !== $buffer->isAltScreenActive()) {
+        continue;
+      }
+      $destination = new Tile(
+        $area->x + $placement['column'] * $cellWidth + $placement['cellXOffset'],
+        $bodyTop + ($placement['row'] - $documentTop) * $cellHeight + $placement['cellYOffset'],
+        $placement['columns'] * $cellWidth,
+        $placement['rows'] * $cellHeight,
+      );
+      $renderer->image($placement['raster'], $destination, $bodyClip, $selected);
+    }
   }
 
   /** Keep the command on the left and status or controls against the right edge. */

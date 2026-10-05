@@ -4,7 +4,7 @@ namespace MADIR\Completion\Provider;
 
 class Session implements \MADIR\Completion\Provider {
 
-  public function getCandidates(array $argv, \MADIR\Command\Session|\MADIR\App\CommandSession $session): array {
+  public function getCandidates(array $argv, \MADIR\App\CommandSession $session): array {
     $candidates = [];
     $search = end($argv);
     $sessionList = $session->getSessionList();

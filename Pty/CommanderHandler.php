@@ -108,8 +108,6 @@ class CommanderHandler {
     if ($now - self::$lastRefresh > 40000) {
       if (self::$periodicRefreshCallback !== null) {
         call_user_func(self::$periodicRefreshCallback);
-      } else {
-        \MADIR\Screen\Controller::periodicRefresh();
       }
       self::$lastRefresh = $now;
     }

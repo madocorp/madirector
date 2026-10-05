@@ -6,7 +6,7 @@ use SPTK\Core\Clipboard;
 use SPTK\Events\KeyNormalizer;
 use SPTK\SDLWrapper\SDL;
 
-/** Translate current SPTK keyboard and text events into PTY input bytes. */
+/** Translate SPTK keyboard and text events into PTY input bytes. */
 final class TerminalInput {
 
   /** Convert one SDL input event using the terminal's cursor and keypad modes. */

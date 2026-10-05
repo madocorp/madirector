@@ -10,7 +10,7 @@ use SPTK\SDLWrapper\SDL;
 use SPTK\Rendering\TextMetrics;
 use SPTK\Widgets\Input\Input;
 
-/** Keep MaDirector sessions and command execution while building current-SPTK tiles. */
+/** Manage MaDirector sessions, command execution, and terminal tiles. */
 final class Director {
 
   private array $sessions = [];
@@ -35,7 +35,7 @@ final class Director {
   private ?CompletionPanel $completionPanel = null;
   private ?TerminalTile $deleteCandidate = null;
 
-  /** Attach the current SPTK window to one initial MaDirector session. */
+  /** Attach the SPTK window to an initial MaDirector session. */
   public function __construct(private Window $window, private Screen $screen) {
     $this->normalBackground = $screen->background;
     $this->session = $this->newSession(0);
@@ -108,7 +108,7 @@ final class Director {
     }
   }
 
-  /** Parse and execute the current command line through the retained shell logic. */
+  /** Parse and execute the command line through the shell logic. */
   public function submit(): bool {
     if ($this->screen->activeLeaf()?->instance() !== $this->prompt) {
       return false;
@@ -135,7 +135,7 @@ final class Director {
     }
     $value = $this->session->browseHistory($step, $this->prompt->text());
     if ($value !== null) {
-      $this->prompt->setValue($value);
+      $this->prompt->setValue($value, true);
     }
     return true;
   }

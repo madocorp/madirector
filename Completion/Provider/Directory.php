@@ -8,7 +8,7 @@ class Directory implements \MADIR\Completion\Provider {
   protected $replaceDir;
   protected $prefix;
 
-  public function getCandidates(array $argv, \MADIR\Command\Session|\MADIR\App\CommandSession $session): array {
+  public function getCandidates(array $argv, \MADIR\App\CommandSession $session): array {
     $candidates = [];
     $hidden = [];
     $partialPath = end($argv);
@@ -40,7 +40,7 @@ class Directory implements \MADIR\Completion\Provider {
     return $candidates;
   }
 
-  protected function parsePath(string $partialPath, \MADIR\Command\Session|\MADIR\App\CommandSession $session): void {
+  protected function parsePath(string $partialPath, \MADIR\App\CommandSession $session): void {
     $parts = explode('/', $partialPath);
     $this->prefix = array_pop($parts);
     $this->replaceDir = rtrim(implode('/', $parts), '/');

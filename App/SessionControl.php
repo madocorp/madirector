@@ -2,7 +2,7 @@
 
 namespace MADIR\App;
 
-/** Apply MaDirector's session and exit commands to retained session state. */
+/** Apply MaDirector's session and exit commands to session state. */
 final class SessionControl {
 
   /** Route a session command and update the selected session when requested. */

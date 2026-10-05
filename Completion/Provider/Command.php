@@ -7,7 +7,7 @@ class Command implements \MADIR\Completion\Provider {
   protected static $commands = [];
   protected static $dirs = [];
 
-  public function getCandidates(array $argv, \MADIR\Command\Session|\MADIR\App\CommandSession $session): array {
+  public function getCandidates(array $argv, \MADIR\App\CommandSession $session): array {
     self::cacheCommands($session);
     $candidates = [];
     $longEnough = mb_strlen($argv[0]) > 3;
