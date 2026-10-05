@@ -1,29 +1,32 @@
 # MaDirector SPTK Migration
 
-MaDirector is being migrated from old SPTK to the current SPTK toolkit over multiple sessions. Preserve old code until each feature is intentionally ported.
+The active `madirector.php` entry point now uses the current SPTK app, screen, layout, and widget APIs.
+The older UI classes remain parked for later feature work. The command parser, command state, PTY
+commander, ANSI parser, and screen buffer remain the execution path.
 
-## Completed / In Progress
+## Active current-SPTK UI
 
-- [x] Create current-SPTK bootstrap in `madirector.php`.
-- [x] Add bottom one-line command input.
-- [x] Run one command on Enter.
-- [x] Render command output in one terminal box using `ScreenBuffer`.
-- [x] Keep existing PTY/process handling behind `CommanderHandler`.
-- [x] Hide the command input while a command runs and focus the running terminal.
-- [x] Forward current-SPTK key/text events to the running PTY for interactive commands.
-- [x] Stack finished terminal boxes from the bottom while space remains.
+- Parallel commands share 2-column, 3-column, or 4-column terminal grids in a vertical overflow
+  stack with a cwd-labeled prompt. PageUp/PageDown move by group, and arrow movement reveals
+  clipped tiles at the appropriate edge.
+- Command prompt, working-directory line, command history, and interactive PTY input.
+- Existing shell parsing, aliases, variables, pipelines, redirections, parallel commands, and internal
+  command handling through `CommandSession`.
+- Named and numbered sessions, listing, clearing, deleting, and exit options.
+- Layout navigation, terminal input and scroll modes, Ctrl+PageUp/PageDown tile selection,
+  and zoom with input or scroll mode.
+- Scrollback selection and clipboard copy, plus the inline signal tile for one terminal or a group.
+- Command completion through the retained providers, shown in a tile above the prompt.
+- Normal-mode session switching, first/last selection, and confirmed removal of finished tiles.
+- Terminal search with an in-tile pattern field and previous/next match navigation.
 
-## Next Migration Targets
+## Remaining UI work
 
-- [ ] Restore command history and current session command line behavior.
-- [ ] Restore full `CommandParser` shell syntax, aliases, variables, and internal commands.
-- [ ] Support multiple terminal boxes and grouped parallel commands.
-- [ ] Expand terminal input/grab mode beyond the active running command.
-- [ ] Restore scroll mode, search, selection, copy, and zoom.
-- [ ] Restore kill/signal panel.
-- [ ] Restore completion providers.
-- [ ] Restore sessions and session navigation.
-- [ ] Restore inline terminal images.
+- Inline terminal images.
+
+The old `Shell`, `TerminalStack`, `TerminalBox`, `TerminalView`, and `Screen/` classes
+are intentionally retained while these controls are migrated. The current UI now
+reuses the retained completion providers and routing logic.
 
 ## Do Not Clean Up Yet
 

@@ -4,7 +4,7 @@ namespace MADIR\Completion\Provider;
 
 class Variable implements \MADIR\Completion\Provider {
 
-  public function getCandidates(array $argv, \MADIR\Command\Session $session): array {
+  public function getCandidates(array $argv, \MADIR\Command\Session|\MADIR\App\CommandSession $session): array {
     $candidates = [];
     $lastArgv = end($argv);
     $search = substr($lastArgv, 1);

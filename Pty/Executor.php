@@ -157,7 +157,11 @@ class Executor {
   }
 
   public function sendSignal($signal) {
-    posix_kill($this->pgid, $signal);
+    // A shell can place its foreground job in a different process group.
+    $foreground = Libc::$instance->libc->tcgetpgrp($this->slave);
+    if ($foreground > 0) {
+      posix_kill(-$foreground, $signal);
+    }
   }
 
 }

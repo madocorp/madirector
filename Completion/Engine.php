@@ -14,6 +14,36 @@ class Engine {
   protected static $selectedGroup = 0;
   protected static $lastArg;
 
+  /** Reuse the parked provider routing for the current SPTK command line. */
+  public static function suggest(string $line, int $cursor, \MADIR\App\CommandSession $session): array {
+    $before = \SPTK\Rendering\TextMetrics::slice($line, 0, $cursor);
+    try {
+      $argv = self::parseArgvText($before, $session);
+    } catch (\Throwable) {
+      return ['prefix' => '', 'groups' => [], 'total' => 0];
+    }
+    if ($argv === []) {
+      return ['prefix' => '', 'groups' => [], 'total' => 0];
+    }
+    $prefix = (string)end($argv);
+    if (preg_match('/\$[A-Za-z_][A-Za-z0-9_]*$/', $before, $match)) {
+      $prefix = $match[0];
+      $argv[count($argv) - 1] = $prefix;
+    }
+    $providers = self::route($argv);
+    $groups = [];
+    $total = 0;
+    foreach ($providers as $name) {
+      $class = "\\MADIR\\Completion\\Provider\\{$name}";
+      $matches = array_values(array_unique((new $class)->getCandidates($argv, $session)));
+      if ($matches !== []) {
+        $total += count($matches);
+        $groups[$name] = array_slice($matches, 0, self::LIST_LIMIT);
+      }
+    }
+    return ['prefix' => $prefix, 'groups' => $groups, 'total' => $total];
+  }
+
   public static function complete(\MADIR\Command\Command $command): void {
     if (self::$display) {
       self::hideWindow();
@@ -148,19 +178,31 @@ class Engine {
   }
 
   protected static function parseArgv(\MADIR\Command\Command $command): array {
-    $commandString = $command->getValueTillCursor();
-    if (empty($commandString)) {
+    return self::parseArgvText($command->getValueTillCursor(), $command->session);
+  }
+
+  private static function parseArgvText(string $commandString, object $session): array {
+    if ($commandString === '') {
       return [];
     }
-    $parser = new \MADIR\Command\CommandParser($command->session, false);
+    $parser = new \MADIR\Command\CommandParser($session, false);
     $parsedCommands = $parser->parse($commandString);
+    if ($parsedCommands === []) {
+      return [];
+    }
     $lastCommand = end($parsedCommands);
     $lastSequence = $lastCommand['sequence'];
+    if ($lastSequence === []) {
+      return [];
+    }
     $lastSequence = end($lastSequence);
     $lastPipeline = $lastSequence['pipeline'];
+    if ($lastPipeline === []) {
+      return [];
+    }
     $lastPipeline = end($lastPipeline);
     $lastArgv = $lastPipeline['argv'];
-    if (substr($commandString, -1) === ' ' && substr(end($lastArgv), -1) !== ' ') {
+    if (str_ends_with($commandString, ' ') && ($lastArgv === [] || !str_ends_with((string)end($lastArgv), ' '))) {
       $lastArgv[] = '';
     }
     return $lastArgv;

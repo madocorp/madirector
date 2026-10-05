@@ -39,7 +39,7 @@ class Libc {
       die("MADIR\\Libc is a singleton, you can't instantiate more than once");
     }
     self::$instance = $this;
-    $this->libc = \FFI::cdef(file_get_contents(dirname(APP_PATH) . "/Pty/libc_extract.h"), "libc.so.6");
+    $this->libc = \FFI::cdef(file_get_contents(APP_DIR . "/Pty/libc_extract.h"), "libc.so.6");
   }
 
   public static function setsid() {

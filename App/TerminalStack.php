@@ -20,6 +20,7 @@ class TerminalStack extends Dock {
     parent::__construct($name);
     $this->setGridAlignment('bottom');
     $this->setGridOverflow(true);
+    $this->setGridRowHeight(TerminalView::DEFAULT_CELL_HEIGHT);
   }
 
   public function layout(): void {

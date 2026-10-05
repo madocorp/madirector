@@ -8,7 +8,7 @@ class File implements \MADIR\Completion\Provider {
   protected $replaceDir;
   protected $prefix;
 
-  public function getCandidates(array $argv, \MADIR\Command\Session $session): array {
+  public function getCandidates(array $argv, \MADIR\Command\Session|\MADIR\App\CommandSession $session): array {
     $candidates = [];
     $hidden = [];
     $partialPath = end($argv);
@@ -37,7 +37,7 @@ class File implements \MADIR\Completion\Provider {
     return $candidates;
   }
 
-  protected function parsePath(string $partialPath, \MADIR\Command\Session $session): void {
+  protected function parsePath(string $partialPath, \MADIR\Command\Session|\MADIR\App\CommandSession $session): void {
     $parts = explode('/', $partialPath);
     $this->prefix = array_pop($parts);
     $this->replaceDir = rtrim(implode('/', $parts), '/');
@@ -49,7 +49,7 @@ class File implements \MADIR\Completion\Provider {
         $parts[0] = dirname($session->cwd());
       }
       if ($parts[0] === '~') {
-        $parts[0] = \SPTK\Config::getHome();
+        $parts[0] = getenv('HOME') ?: $session->cwd();
       }
     }
     if ($parts === ['']) {

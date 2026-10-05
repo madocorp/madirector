@@ -1,35 +1,22 @@
 #!/usr/bin/env php
 <?php
 
-define('SPTK\DEBUG', false);
-define('APP_PATH', __FILE__);
-define('APP_NAMESPACE', 'MADIR');
+define('APP_DIR', __DIR__);
 
-require_once 'SPTK/Autoload.php';
+require_once APP_DIR . '/SPTK/App.php';
 
-use MADIR\App\Shell;
 use MADIR\Pty\CommanderHandler;
-use SPTK\Runtime\SdlApp;
-use SPTK\Runtime\SdlWindowOptions;
+
+/** Load MaDirector's own parser, process, and UI classes. */
+function loadMadirector(string $class): void {
+  if (!str_starts_with($class, 'MADIR\\')) {
+    return;
+  }
+  require_once APP_DIR . '/' . str_replace('\\', '/', substr($class, 6)) . '.php';
+}
+
+spl_autoload_register('loadMadirector');
 
 CommanderHandler::init();
 
-$app = new SdlApp('MADIR');
-$fontSize = 16;
-$shell = new Shell(
-  $fontSize,
-  fn() => $app->quit(),
-  function() use ($app): void {
-    $app->suppressInput();
-    $app->resumeInput();
-  }
-);
-CommanderHandler::setPeriodicRefreshCallback(fn() => $shell->poll());
-$app->addTimer(20, fn() => CommanderHandler::loop());
-$app->addWindow($shell->build(), new SdlWindowOptions(
-  title: 'MaDirector',
-  columns: 128,
-  rows: 40,
-  fontSize: $fontSize
-));
-$app->run();
+new \SPTK\App();
