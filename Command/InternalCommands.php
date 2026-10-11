@@ -24,7 +24,7 @@ trait InternalCommands {
         if ($license === false) {
           $license = "The UNLICENSE file could not be read.";
         }
-        return "\e_Ga=T,t=f,i=42;" . base64_encode("{$appDir}/Layout/madir.png") . "\e\\"
+        return "\e_Ga=T,t=f,i=42;" . base64_encode("{$appDir}/Assets/logo.png") . "\e\\"
           . "\n\e[1;37mMaDirector is a terminal emulator with an integrated command shell and\n"
           . "session manager. It supports interactive applications, pipelines,\n"
           . "redirections, and multiple concurrent sessions, helping you keep related\n"

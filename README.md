@@ -121,8 +121,3 @@ timg -pk -g64x24 "$HOME/.local/share/madirector/SPTK/Demo/Assets/test.jpg"
 
 The `-pk` option selects Kitty graphics. Change the image path if you installed
 MaDirector elsewhere. The bundled test image should appear wider than tall.
-
-## License
-
-MaDirector is released into the public domain under the
-[Unlicense](UNLICENSE).

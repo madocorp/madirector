@@ -6,7 +6,7 @@
   <Event type="init" action="MADIR\App\Controller::init" />
   <Event type="timer" period="20" action="MADIR\App\Controller::tick" />
   <Event type="close" action="MADIR\App\Controller::close" />
-  <Window title="MaDirector" width="128" height="40" mode="normal">
+  <Window title="MaDirector" width="128" height="40" mode="normal" icon="../Assets/icon.png">
     <Screen file="main.xml" id="main" title="MaDirector" />
   </Window>
 </App>
