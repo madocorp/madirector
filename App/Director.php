@@ -10,7 +10,7 @@ use SPTK\SDLWrapper\SDL;
 use SPTK\Rendering\TextMetrics;
 use SPTK\Widgets\Input\Input;
 
-/** Manage MaDirector sessions, command execution, and terminal tiles. */
+/** Manage madirector sessions, command execution, and terminal tiles. */
 final class Director {
 
   private array $sessions = [];
@@ -35,7 +35,7 @@ final class Director {
   private ?CompletionPanel $completionPanel = null;
   private ?TerminalTile $deleteCandidate = null;
 
-  /** Attach the SPTK window to an initial MaDirector session. */
+  /** Attach the SPTK window to an initial madirector session. */
   public function __construct(private Window $window, private Screen $screen) {
     $this->normalBackground = $screen->background;
     $this->session = $this->newSession(0);

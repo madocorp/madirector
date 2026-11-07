@@ -25,7 +25,7 @@ trait InternalCommands {
           $license = "The UNLICENSE file could not be read.";
         }
         return "\e_Ga=T,t=f,i=42;" . base64_encode("{$appDir}/Assets/logo.png") . "\e\\"
-          . "\n\e[1;37mMaDirector is a terminal emulator with an integrated command shell and\n"
+          . "\n\e[1;37mmadirector is a terminal emulator with an integrated command shell and\n"
           . "session manager. It supports interactive applications, pipelines,\n"
           . "redirections, and multiple concurrent sessions, helping you keep related\n"
           . "tasks together and easily sitch between them.\e[0m\n\n" . rtrim($license) . "\n";
@@ -80,8 +80,8 @@ trait InternalCommands {
             ['alias', 'Manage command aliases.'],
             ['session', 'Manage sessions. Alias: s.'],
             ['open', 'Open files with configured applications.'],
-            ['help', 'Show MaDirector help.'],
-            ['exit', 'Close sessions or quit MaDirector.'],
+            ['help', 'Show madirector help.'],
+            ['exit', 'Close sessions or quit madirector.'],
             ['$name=x', 'Set or unset a shell variable.'],
             ['ID', 'Switch to a numeric session ID.'],
           ], 10)
@@ -332,7 +332,7 @@ trait InternalCommands {
       ['open -l', 'List configured relations.'],
       ['open FILE...', 'Open files. Shell-style globs such as *.txt are expanded.'],
       ['open -n NAME -c REGEXP -a APP', 'Create or replace a relation.'],
-      ['open -t -n NAME -c REGEXP -a APP', 'Run APP as a MaDirector terminal command instead of detached.'],
+      ['open -t -n NAME -c REGEXP -a APP', 'Run APP as a madirector terminal command instead of detached.'],
       ['open -d NAME', 'Delete a relation.'],
     ], 38);
     $help .= "\n";
@@ -341,7 +341,7 @@ trait InternalCommands {
       ['-n NAME', 'Relation name, used for listing and deleting.'],
       ['-c REGEXP', 'File matching condition, for example /\\.txt$/.'],
       ['-a APP', 'Application command or command template.'],
-      ['-t', 'Run the application command inside MaDirector.'],
+      ['-t', 'Run the application command inside madirector.'],
       ['-d NAME', 'Delete the relation with this name.'],
     ], 12);
     $help .= "\n";

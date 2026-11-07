@@ -2,7 +2,7 @@
 
 ## Architecture
 
-MaDirector uses the `SPTK/` toolkit.
+madirector uses the `SPTK/` toolkit.
 The entry point defines `APP_DIR` and `APP_NAMESPACE` before requiring
 `SPTK/App.php`; SPTK loads `MADIR\` classes from the matching directory paths.
 
@@ -12,7 +12,7 @@ commands, completion providers, PTY commander, ANSI parser, and screen buffer.
 ## Development Commands
 
 - `php -l madirector.php` checks the entry point.
-- `find . -path ./.git -prune -o -path ./SPTK -prune -o -name '*.php' -exec php -l {} +` lints MaDirector PHP files while skipping the SPTK symlink.
+- `find . -path ./.git -prune -o -path ./SPTK -prune -o -name '*.php' -exec php -l {} +` lints madirector PHP files while skipping the SPTK symlink.
 - `php madirector.php` runs the app and opens an SDL window.
 - From `../SPTK`, run the relevant standalone script in `Tests/` when touching
   shared toolkit behavior.

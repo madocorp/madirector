@@ -6,7 +6,7 @@ use MADIR\Pty\CommanderHandler;
 use SPTK\Events\EventContext;
 use SPTK\SDLWrapper\SDL;
 
-/** Route lifecycle and shortcut events into MaDirector's session UI. */
+/** Route lifecycle and shortcut events into madirector's session UI. */
 final class Controller {
 
   private static ?Director $director = null;

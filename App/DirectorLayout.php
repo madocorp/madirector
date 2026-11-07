@@ -6,7 +6,7 @@ use SPTK\Core\{Screen, Style, Window};
 use SPTK\Layout\{LayoutLeaf, LayoutNode};
 use SPTK\Widgets\Input\Input;
 
-/** Rebuild the visible terminal stack and prompt from MaDirector session state. */
+/** Rebuild the visible terminal stack and prompt from madirector session state. */
 final class DirectorLayout {
 
   private ?LayoutNode $stack = null;

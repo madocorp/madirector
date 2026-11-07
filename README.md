@@ -1,6 +1,6 @@
-# MaDirector
+# madirector
 
-MaDirector is a terminal emulator with an integrated command shell and session
+madirector is a terminal emulator with an integrated command shell and session
 manager. It runs interactive applications and supports pipelines, redirections,
 and multiple concurrent sessions.
 
@@ -24,7 +24,7 @@ manager. Package names vary by system.
 
 ## Installation
 
-MaDirector is installed manually; it does not use Composer. The example below
+madirector is installed manually; it does not use Composer. The example below
 installs both projects for one Linux user:
 
 ```sh
@@ -54,7 +54,7 @@ madirector
 ```
 
 Type a command and press Enter. The prompt supports shell commands, command
-history, completion, and MaDirector's internal commands. For the full command
+history, completion, and madirector's internal commands. For the full command
 and key reference, enter `help`, `help about`, `help key`, or `help command`.
 
 ### Keyboard shortcuts
@@ -113,11 +113,11 @@ parallel commands joined with `&` share a grid. Tiles grow as output arrives,
 and groups can be partially visible when the stack exceeds the window.
 
 Kitty inline images appear in terminal output and move with scrollback. To
-check image support, start `bash` in MaDirector and run:
+check image support, start `bash` in madirector and run:
 
 ```sh
 timg -pk -g64x24 "$HOME/.local/share/madirector/SPTK/Demo/Assets/test.jpg"
 ```
 
 The `-pk` option selects Kitty graphics. Change the image path if you installed
-MaDirector elsewhere. The bundled test image should appear wider than tall.
+madirector elsewhere. The bundled test image should appear wider than tall.

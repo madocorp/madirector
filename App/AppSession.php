@@ -2,7 +2,7 @@
 
 namespace MADIR\App;
 
-/** One visible MaDirector command screen. */
+/** One visible madirector command screen. */
 class AppSession {
 
   public CommandSession $commandSession;
