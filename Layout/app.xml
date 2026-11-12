@@ -1,12 +1,21 @@
 <App font="LiberationMono-Bold" fontSize="16">
   <Style>
-    <Background>#000080</Background>
+    <Background>#000000</Background>
     <Foreground>#ffffff</Foreground>
   </Style>
   <Event type="init" action="MADIR\App\Controller::init" />
   <Event type="timer" period="20" action="MADIR\App\Controller::tick" />
   <Event type="close" action="MADIR\App\Controller::close" />
   <Window title="madirector" width="128" height="40" mode="normal" icon="../Assets/icon.png">
-    <Screen file="main.xml" id="main" title="madirector" />
+    <Screen file="main.xml" id="screen0" title="Screen 0" />
+    <Screen file="main.xml" id="screen1" title="Screen 1" />
+    <Screen file="main.xml" id="screen2" title="Screen 2" />
+    <Screen file="main.xml" id="screen3" title="Screen 3" />
+    <Screen file="main.xml" id="screen4" title="Screen 4" />
+    <Screen file="main.xml" id="screen5" title="Screen 5" />
+    <Screen file="main.xml" id="screen6" title="Screen 6" />
+    <Screen file="main.xml" id="screen7" title="Screen 7" />
+    <Screen file="main.xml" id="screen8" title="Screen 8" />
+    <Screen file="main.xml" id="screen9" title="Screen 9" />
   </Window>
 </App>

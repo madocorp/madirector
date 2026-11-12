@@ -6,8 +6,5 @@ define('APP_NAMESPACE', 'MADIR');
 
 require_once APP_DIR . '/SPTK/App.php';
 
-use MADIR\Pty\CommanderHandler;
-
-CommanderHandler::init();
-
+new \MADIR\Pty\Libc();
 new \SPTK\App();

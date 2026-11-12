@@ -19,6 +19,8 @@ final class TerminalTile extends Widget {
   private bool $scrollMode = false;
   private bool $inputMode = false;
   private bool $groupInputMode = false;
+  private ?\Closure $inputHandler = null;
+  private ?string $lastSelection = null;
   private bool $zoomed = false;
   private bool $suppressNextTextInput = false;
   private bool $deleteConfirmation = false;
@@ -36,7 +38,7 @@ final class TerminalTile extends Widget {
   private Color $white;
 
   /** Bind one running or completed command to this tile. */
-  public function __construct(private RunningCommand $command, private Style $style = new Style()) {
+  public function __construct(private RunningShell $command, private Style $style = new Style()) {
     $this->black = new Color(0, 0, 0);
     $this->white = new Color(255, 255, 255);
     $this->on('activate', $this->activate(...));
@@ -257,9 +259,6 @@ final class TerminalTile extends Widget {
     if ($event->type === SDL::SDL_EVENT_KEY_DOWN) {
       $this->suppressNextTextInput = false;
       $key = KeyNormalizer::normalize((int)$event->key->key, (int)$event->key->mod);
-      if ($key === SDL::KEY_F12 && in_array(KeyNormalizer::normalizeModifiers((int)$event->key->mod), [0, SDL::MOD_SHIFT], true)) {
-        return false;
-      }
       if ($this->scrollMode) {
         return $this->handleScrollKey($key, (int)$event->key->mod);
       }
@@ -274,13 +273,22 @@ final class TerminalTile extends Widget {
     if ($stream === null) {
       return in_array($event->type, [SDL::SDL_EVENT_KEY_DOWN, SDL::SDL_EVENT_TEXT_INPUT], true);
     }
-    $this->command->input($stream);
+    if ($this->inputHandler !== null) {
+      ($this->inputHandler)($stream);
+    } else {
+      $this->command->input($stream);
+    }
     return true;
   }
 
   /** Keep Return and Escape available to interactive programs. */
   public function releaseNotification(int $key, int $modifiers): ?string {
     return $this->searchMode || $this->command->isRunning() ? null : parent::releaseNotification($key, $modifiers);
+  }
+
+  /** A live shell accepts input, and any terminal can browse its output. */
+  public function canActivate(): bool {
+    return $this->scrollMode || $this->command->isRunning();
   }
 
   /** Edit a search query in the title while keeping terminal output visible. */
@@ -342,6 +350,7 @@ final class TerminalTile extends Widget {
 
   /** Leave scrollback and resume the live terminal view. */
   public function stopScroll(): void {
+    $this->lastSelection = $this->scrollCursor?->selectedText();
     $this->scrollMode = false;
     $this->search = null;
     $this->scrollOffset = 0;
@@ -355,8 +364,23 @@ final class TerminalTile extends Widget {
     return $this->scrollMode;
   }
 
+  /** Copy the current or most recent scroll selection. */
+  public function copySelection(): bool {
+    $text = $this->scrollMode ? $this->scrollCursor?->selectedText() : $this->lastSelection;
+    if ($text === null) {
+      return false;
+    }
+    Clipboard::set($text);
+    return true;
+  }
+
   public function isRunning(): bool {
     return $this->command->isRunning();
+  }
+
+  /** Return the shell owned by this terminal pane. */
+  public function shell(): RunningShell {
+    return $this->command;
   }
 
   public function setZoomed(bool $zoomed): void {
@@ -365,6 +389,11 @@ final class TerminalTile extends Widget {
 
   public function setGroupInputMode(bool $enabled): void {
     $this->groupInputMode = $enabled;
+  }
+
+  /** Route translated PTY bytes through the screen's optional group input handler. */
+  public function setInputHandler(?callable $handler): void {
+    $this->inputHandler = $handler === null ? null : \Closure::fromCallable($handler);
   }
 
   public function setDeleteConfirmation(bool $enabled): void {
@@ -384,6 +413,9 @@ final class TerminalTile extends Widget {
   /** Stop accepting PTY input after focus leaves. */
   private function deactivate(): void {
     $this->inputMode = false;
+    if ($this->scrollMode) {
+      $this->stopScroll();
+    }
   }
 
   /** Convert a packed terminal RGB value to an SPTK color. */
@@ -412,9 +444,8 @@ final class TerminalTile extends Widget {
     $document = ($modifiers & SDL::MOD_CTRL) !== 0;
     if ($document && $key === ord('a')) {
       $cursor->selectAll();
-    } else if ($document && ($key === ord('c') || $key === SDL::KEY_INSERT)) {
-      Clipboard::set($cursor->selectedText());
-      return true;
+    } else if ($key === ord('c') || ($document && $key === SDL::KEY_INSERT)) {
+      return $this->copySelection();
     } else if ($document && $key === SDL::KEY_PAGEUP) {
       $cursor->moveDocumentStart($select);
       $this->preferredColumn = false;
