@@ -28,6 +28,7 @@ final class TerminalTile extends Widget {
   private bool $paintedImages = false;
   private ?string $paintedHeader = null;
   private static array $colors = [];
+  private static ?self $activeTile = null; // Group members take input while one of them is active.
   private ?Input $searchInput = null;
   private ?TerminalSearch $search = null;
   private int $maximumBodyRows = 23;
@@ -80,7 +81,7 @@ final class TerminalTile extends Widget {
     $bufferRows = $this->scrollMode
       ? $this->command->buffer()->getDocumentRows($this->scrollOffset, $rows)
       : $this->command->buffer()->getRows();
-    $cursor = $this->scrollMode ? false : $this->command->buffer()->getCursor();
+    $cursor = $this->scrollMode ? false : ($this->takesInput() ? $this->command->buffer()->getCursor() : $this->command->buffer()->getCursorPosition());
     $selection = $this->scrollMode && $this->scrollCursor?->hasSelection() ? $this->scrollCursor->selectionRange() : null;
     for ($y = 0; $y < $rows; $y++) {
       $documentRow = $this->scrollOffset + $y;
@@ -153,7 +154,7 @@ final class TerminalTile extends Widget {
     $buffer = $this->command->buffer();
     $bodyStart = $this->zoomed ? 0 : 1;
     $rows = $writer->height() - $bodyStart;
-    if ($this->scrollMode || $this->searchMode || $this->paintsPixels() || $buffer->screenIsInvalid()
+    if (!$this->takesInput() || $this->scrollMode || $this->searchMode || $this->paintsPixels() || $buffer->screenIsInvalid()
       || $writer->width() !== $this->viewportWidth || $rows !== $this->viewportHeight) {
       return false;
     }
@@ -196,10 +197,19 @@ final class TerminalTile extends Widget {
     }
     $fg = $this->color((int)($data[ScreenBuffer::FG] ?? 0xffffff));
     $bg = $this->color((int)($data[ScreenBuffer::BG] ?? 0));
+    if ($cursor && !$this->takesInput()) {
+      return new Cell($glyph, $this->black, $this->style->error, TextMetrics::glyphWidth($glyph));
+    }
     if (((int)($data[ScreenBuffer::ATTR] ?? 0) & ScreenBuffer::A_REVERSE) !== 0 || $cursor) {
       [$fg, $bg] = [$bg, $fg];
     }
     return new Cell($glyph, $fg, $bg, TextMetrics::glyphWidth($glyph));
+  }
+
+  /** Tell if typed keys reach this shell; otherwise the cursor is drawn red. */
+  private function takesInput(): bool {
+    $active = self::$activeTile;
+    return $this->inputMode || ($this->groupInputMode && $active !== null && $active->inputMode && $active->groupInputMode);
   }
 
   /** Return everything the header row shows, to skip repainting an unchanged header. */
@@ -470,11 +480,15 @@ final class TerminalTile extends Widget {
   /** Mark this tile as the active input target. */
   private function activate(): void {
     $this->inputMode = true;
+    self::$activeTile = $this;
   }
 
   /** Stop accepting PTY input after focus leaves. */
   private function deactivate(): void {
     $this->inputMode = false;
+    if (self::$activeTile === $this) {
+      self::$activeTile = null;
+    }
     if ($this->scrollMode) {
       $this->stopScroll();
     }
