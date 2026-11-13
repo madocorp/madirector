@@ -156,7 +156,10 @@ final class Controller {
     if ($event->type !== SDL::SDL_EVENT_KEY_UP || !in_array((int)$event->key->key, [SDL::KEY_LSHIFT, SDL::KEY_RSHIFT], true)) {
       return false;
     }
-    if (!$screen->activeLeaf()?->instance() instanceof TerminalTile) {
+    $active = $screen->activeLeaf();
+    $selected = $screen->selectedLeaf();
+    $resumable = $active === null && $selected?->instance() instanceof TerminalTile && $selected->instance()->isRunning();
+    if (!$active?->instance() instanceof TerminalTile && !$resumable) {
       self::$lastShiftRelease = 0.0;
       return false;
     }
@@ -164,7 +167,11 @@ final class Controller {
     if (self::$lastShiftRelease > 0 && $now - self::$lastShiftRelease <= 300) {
       self::$lastShiftRelease = 0.0;
       self::$keypadText = null;
-      $screen->release();
+      if ($resumable) {
+        $screen->activateLeaf($selected);
+      } else {
+        $screen->release();
+      }
       return true;
     }
     self::$lastShiftRelease = $now;
