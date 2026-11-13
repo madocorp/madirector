@@ -27,6 +27,10 @@ final class TerminalInput {
     if ($ctrl && $key >= ord('a') && $key <= ord('z')) {
       return ($alt ? "\e" : '') . chr($key & 0x1f);
     }
+    $meta = self::metaChar($event);
+    if ($meta !== null) {
+      return "\e" . $meta;
+    }
     $sequence = match ($key) {
       SDL::KEY_RETURN => "\r",
       SDL::KEY_BACKSPACE => "\x7f",
@@ -59,6 +63,21 @@ final class TerminalInput {
       $sequence = "\x00";
     }
     return $sequence === null ? null : ($alt ? "\e" : '') . $sequence;
+  }
+
+  /** Tell if a key press is sent as ESC + character, so its text input must be dropped. */
+  public static function isMetaKey(mixed $event): bool {
+    return $event->type === SDL::SDL_EVENT_KEY_DOWN && self::metaChar($event) !== null;
+  }
+
+  /** Return the printable character of a left Alt key press; right Alt stays AltGr for typing. */
+  private static function metaChar(mixed $event): ?string {
+    $mod = (int)$event->key->mod;
+    if (($mod & SDL::MOD_LALT) === 0 || ($mod & SDL::MOD_CTRL) !== 0) {
+      return null;
+    }
+    $key = KeyNormalizer::normalizeInput($event);
+    return $key >= 32 && $key < 127 ? chr($key) : null;
   }
 
 }

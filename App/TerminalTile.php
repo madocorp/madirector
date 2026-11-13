@@ -332,6 +332,9 @@ final class TerminalTile extends Widget {
     if ($stream === null) {
       return in_array($event->type, [SDL::SDL_EVENT_KEY_DOWN, SDL::SDL_EVENT_TEXT_INPUT], true);
     }
+    if (TerminalInput::isMetaKey($event)) {
+      $this->suppressNextTextInput = true;
+    }
     if ($this->inputHandler !== null) {
       ($this->inputHandler)($stream);
     } else {
