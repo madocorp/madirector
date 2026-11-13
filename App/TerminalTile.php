@@ -26,6 +26,8 @@ final class TerminalTile extends Widget {
   private bool $deleteConfirmation = false;
   private bool $searchMode = false;
   private bool $paintedImages = false;
+  private ?string $paintedHeader = null;
+  private static array $colors = [];
   private ?Input $searchInput = null;
   private ?TerminalSearch $search = null;
   private int $maximumBodyRows = 23;
@@ -92,25 +94,16 @@ final class TerminalTile extends Widget {
         if ($x >= $writer->width()) {
           break;
         }
-        $glyph = (string)($data[ScreenBuffer::GLYPH] ?? ' ');
-        if ($glyph === '') {
+        $cell = $this->cell($data, $cursor !== false && $cursor === [$y, $x]);
+        if ($cell === null) {
           continue;
-        }
-        if (preg_match('/[\x00-\x1f\x7f]/', $glyph)) {
-          $glyph = ' ';
-        }
-        $fg = $this->color((int)($data[ScreenBuffer::FG] ?? 0xffffff));
-        $bg = $this->color((int)($data[ScreenBuffer::BG] ?? 0));
-        if (((int)($data[ScreenBuffer::ATTR] ?? 0) & ScreenBuffer::A_REVERSE) !== 0 || ($cursor !== false && $cursor === [$y, $x])) {
-          [$fg, $bg] = [$bg, $fg];
         }
         if ($selection !== null && isset($indices[$x]) && $indices[$x] < TextMetrics::length($this->scrollLines[$documentRow] ?? '')
           && [$documentRow, $indices[$x]] >= [$selection[0], $selection[1]]
           && [$documentRow, $indices[$x]] < [$selection[2], $selection[3]]) {
-          $fg = $this->black;
-          $bg = $this->style->selected;
+          $cell = new Cell($cell->glyph, $this->black, $this->style->selected, $cell->width);
         }
-        $writer->put((int)$x, $y + $bodyStart, new Cell($glyph, $fg, $bg, TextMetrics::glyphWidth($glyph)));
+        $writer->put((int)$x, $y + $bodyStart, $cell);
       }
       if ($selection !== null && $documentRow < count($this->scrollLines) - 1) {
         $end = TextMetrics::length($this->scrollLines[$documentRow]);
@@ -148,6 +141,71 @@ final class TerminalTile extends Widget {
         $writer->set($x, $y + $bodyStart, $glyph, $this->black, $this->style->selected);
       }
     }
+    if ($this->scrollMode) {
+      $this->command->buffer()->invalidateScreen();
+    } else {
+      $this->command->buffer()->saveScreen();
+    }
+  }
+
+  /** Repaint only the cells that changed since the last paint. */
+  public function paintUpdate(GridWriter $writer): bool {
+    $buffer = $this->command->buffer();
+    $bodyStart = $this->zoomed ? 0 : 1;
+    $rows = $writer->height() - $bodyStart;
+    if ($this->scrollMode || $this->searchMode || $this->paintsPixels() || $buffer->screenIsInvalid()
+      || $writer->width() !== $this->viewportWidth || $rows !== $this->viewportHeight) {
+      return false;
+    }
+    if ($bodyStart > 0 && $this->headerState() !== $this->paintedHeader) {
+      $this->paintHeader($writer);
+    }
+    $cursor = $buffer->getCursor();
+    foreach ($buffer->getRows() as $y => $row) {
+      if ($y >= $rows) {
+        break;
+      }
+      if (!$buffer->rowChanged($y)) {
+        continue;
+      }
+      foreach ($row as $x => $data) {
+        if ($x >= $writer->width()) {
+          break;
+        }
+        if (!$buffer->cellChanged($y, $x)) {
+          continue;
+        }
+        $cell = $this->cell($data, $cursor !== false && $cursor === [$y, $x]);
+        if ($cell !== null) {
+          $writer->put((int)$x, $y + $bodyStart, $cell);
+        }
+      }
+    }
+    $buffer->saveScreen();
+    return true;
+  }
+
+  /** Build the grid cell for one screen buffer cell; null for the right half of a wide glyph. */
+  private function cell(array $data, bool $cursor): ?Cell {
+    $glyph = (string)($data[ScreenBuffer::GLYPH] ?? ' ');
+    if ($glyph === '') {
+      return null;
+    }
+    if (preg_match('/[\x00-\x1f\x7f]/', $glyph)) {
+      $glyph = ' ';
+    }
+    $fg = $this->color((int)($data[ScreenBuffer::FG] ?? 0xffffff));
+    $bg = $this->color((int)($data[ScreenBuffer::BG] ?? 0));
+    if (((int)($data[ScreenBuffer::ATTR] ?? 0) & ScreenBuffer::A_REVERSE) !== 0 || $cursor) {
+      [$fg, $bg] = [$bg, $fg];
+    }
+    return new Cell($glyph, $fg, $bg, TextMetrics::glyphWidth($glyph));
+  }
+
+  /** Return everything the header row shows, to skip repainting an unchanged header. */
+  private function headerState(): string {
+    return serialize([$this->scrollMode, $this->deleteConfirmation, $this->inputMode, $this->groupInputMode,
+      $this->searchMode, $this->search?->count(), $this->search?->index(), $this->command->status(), $this->command->title()]);
   }
 
   /** Paint the tile padding with the app color while terminal cells stay black. */
@@ -204,6 +262,7 @@ final class TerminalTile extends Widget {
 
   /** Keep the command on the left and status or controls against the right edge. */
   private function paintHeader(GridWriter $writer): void {
+    $this->paintedHeader = $this->headerState();
     $width = $writer->width();
     $titleBackground = ($this->scrollMode || $this->deleteConfirmation) ? $this->style->selected : (($this->inputMode || $this->groupInputMode) ? $this->style->highlight : $this->white);
     $writer->fillRow(0, $this->black, $titleBackground);
@@ -420,7 +479,7 @@ final class TerminalTile extends Widget {
 
   /** Convert a packed terminal RGB value to an SPTK color. */
   private function color(int $value): Color {
-    return new Color(($value >> 16) & 255, ($value >> 8) & 255, $value & 255);
+    return self::$colors[$value] ??= new Color(($value >> 16) & 255, ($value >> 8) & 255, $value & 255);
   }
 
   /** Track document rows while a running command appends output. */

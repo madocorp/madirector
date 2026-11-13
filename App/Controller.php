@@ -20,6 +20,12 @@ final class Controller {
   private static ?string $keypadText = null;
   private static float $keypadTime = 0.0;
   private static bool $suppressMoveText = false;
+  private const FAST_TICK = 5; // ms
+  private const IDLE_TICK = 250; // ms
+  private const FULL_REPAINT_GAP = 30; // ms
+  private static int $tickPeriod = 20;
+  private static int $lastFullRepaint = 0;
+  private static bool $fullRepaintPending = false;
 
   /** Open screen zero with its first live shell. */
   public static function init(EventContext $event): void {
@@ -50,33 +56,76 @@ final class Controller {
       'status' => $status, 'hasTerminal' => true, 'fullLayout' => null, 'multiplex' => false];
   }
 
-  /** Poll all shells, repainting only when the visible screen changes. */
+  /** Poll all shells and repaint only what changed on the visible screen. */
   public static function tick(EventContext $event): void {
     if (self::$window === null) {
       return;
     }
     ShellProcess::reapClosed();
     $current = self::currentIndex();
-    $changed = false;
-    foreach (self::$shells as $index => $group) {
+    $screen = self::$screenStates[$current]['screen'];
+    $heights = self::terminalHeights($screen);
+    $changedShells = [];
+    foreach (self::$shells as $group) {
       foreach ($group as $shell) {
-        if ($shell->poll() && $index === $current) {
-          $changed = true;
+        if ($shell->poll()) {
+          $changedShells[spl_object_id($shell)] = true;
         }
       }
     }
-    $screen = self::$screenStates[$current]['screen'];
-    if ($screen->activeLeaf()?->instance() instanceof TerminalTile && !$screen->activeLeaf()->instance()->isRunning()) {
-      $screen->release();
-      $changed = true;
+    $active = $screen->activeLeaf();
+    $repaint = self::$fullRepaintPending ? 'full' : null;
+    foreach ($screen->layout->leaves() as $leaf) {
+      if ($leaf->instance() instanceof TerminalTile && isset($changedShells[spl_object_id($leaf->instance()->shell())])) {
+        $repaint = $leaf === $active && $repaint === null ? 'leaf' : 'full';
+      }
     }
-    if ($changed) {
-      self::$window->refreshLayout();
+    if ($active?->instance() instanceof TerminalTile && !$active->instance()->isRunning()) {
+      $screen->release();
+      $repaint = 'full';
+    }
+    if ($repaint !== null && $heights !== self::terminalHeights($screen)) {
+      $repaint = 'full';
+    }
+    if ($repaint === 'full') {
+      // Full repaints are slow; skip some frames while background panes keep printing.
+      $now = hrtime(true);
+      self::$fullRepaintPending = $now - self::$lastFullRepaint < self::FULL_REPAINT_GAP * 1000000;
+      if (!self::$fullRepaintPending) {
+        self::$lastFullRepaint = $now;
+        self::$window->refreshLayout();
+      }
+    } else if ($repaint === 'leaf') {
+      self::$window->refreshActiveLeaf();
+    }
+    self::paceTick($changedShells !== [] || self::$fullRepaintPending);
+  }
+
+  /** Return the preferred height of each terminal, which changes the layout when it grows. */
+  private static function terminalHeights(Screen $screen): array {
+    $heights = [];
+    foreach ($screen->layout->leaves() as $leaf) {
+      if ($leaf->instance() instanceof TerminalTile) {
+        $heights[] = $leaf->instance()->preferredHeight();
+      }
+    }
+    return $heights;
+  }
+
+  /** Poll fast while something happens, and slow down step by step when idle. */
+  private static function paceTick(bool $busy): void {
+    $period = $busy ? self::FAST_TICK : min(self::IDLE_TICK, self::$tickPeriod * 2);
+    if ($period !== self::$tickPeriod) {
+      self::$tickPeriod = $period;
+      \SPTK\App::eventLoop()->setTimerPeriod(self::class . '::tick', $period);
     }
   }
 
   /** Release terminal input after two quick Shift releases. */
   private static function guardInputMode(mixed $event): bool {
+    if ($event->type === SDL::SDL_EVENT_KEY_DOWN || $event->type === SDL::SDL_EVENT_TEXT_INPUT) {
+      self::paceTick(true);
+    }
     $screen = self::$window?->screen('screen' . self::currentIndex());
     if ($screen === null || $screen->statusBar?->confirming()) {
       return false;

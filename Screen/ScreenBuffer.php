@@ -797,7 +797,7 @@ class ScreenBuffer {
 
   public function saveScreen() {
     $this->previousScreen = $this->currentScreen;
-    $this->previousCursor = [$this->row, $this->col];
+    $this->previousCursor = $this->getCursor();
   }
 
   public function invalidateScreen() {
@@ -809,14 +809,29 @@ class ScreenBuffer {
     return $this->previousScreen === false;
   }
 
+  public function rowChanged($i) {
+    if ($this->previousScreen === false || $this->cursorMovedOn($i)) {
+      return true;
+    }
+    return ($this->currentScreen[$i] ?? null) !== ($this->previousScreen[$i] ?? null);
+  }
+
+  /** Tell if the cursor moved, appeared or disappeared on this row or cell since the last paint. */
+  protected function cursorMovedOn($i, $j = null) {
+    $cursor = $this->getCursor();
+    if ($cursor === $this->previousCursor) {
+      return false;
+    }
+    foreach ([$cursor, $this->previousCursor] as $position) {
+      if ($position !== false && $position[0] === $i && ($j === null || $position[1] === $j)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   public function cellChanged($i, $j) {
-    if ($this->previousScreen === false) {
-      return true;
-    }
-    if ($i === $this->row && $j === $this->col) {
-      return true;
-    }
-    if ($i === $this->previousCursor[0] && $j === $this->previousCursor[1]) {
+    if ($this->previousScreen === false || $this->cursorMovedOn($i, $j)) {
       return true;
     }
     if (!isset($this->currentScreen[$i][$j]) || !isset($this->previousScreen[$i][$j])) {
